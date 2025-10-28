@@ -1,117 +1,194 @@
-## README for docker Deployment
+# Dify自定义部署
 
-Welcome to the new `docker` directory for deploying Dify using Docker Compose. This README outlines the updates, deployment instructions, and migration details for existing users.
+这个配置使用我们自己的web前端 + 官方的dify API服务，实现自定义的Dify部署。
 
-### What's Updated
+## 🏗️ 架构说明
 
-- **Certbot Container**: `docker-compose.yaml` now contains `certbot` for managing SSL certificates. This container automatically renews certificates and ensures secure HTTPS connections.\
-  For more information, refer `docker/certbot/README.md`.
+- **Web前端**: 使用我们修改过的web代码，包含认证集成功能
+- **API服务**: 使用官方的dify-api镜像
+- **数据库**: PostgreSQL
+- **缓存**: Redis
+- **向量存储**: Weaviate
+- **反向代理**: Nginx
 
-- **Persistent Environment Variables**: Environment variables are now managed through a `.env` file, ensuring that your configurations persist across deployments.
+## 📁 文件结构
 
-  > What is `.env`? </br> </br>
-  > The `.env` file is a crucial component in Docker and Docker Compose environments, serving as a centralized configuration file where you can define environment variables that are accessible to the containers at runtime. This file simplifies the management of environment settings across different stages of development, testing, and production, providing consistency and ease of configuration to deployments.
+```
+docker/
+├── Dockerfile.web              # Web前端Dockerfile
+├── docker-compose.yaml         # 修改后的官方Docker Compose配置
+├── start.sh                    # 启动脚本
+└── README.md                   # 说明文档
+```
 
-- **Unified Vector Database Services**: All vector database services are now managed from a single Docker Compose file `docker-compose.yaml`. You can switch between different vector databases by setting the `VECTOR_STORE` environment variable in your `.env` file.
+## 🚀 快速开始
 
-- **Mandatory .env File**: A `.env` file is now required to run `docker compose up`. This file is crucial for configuring your deployment and for any custom settings to persist through upgrades.
+### 1. 启动服务
 
-### How to Deploy Dify with `docker-compose.yaml`
+```bash
+cd docker
+./start.sh
+```
 
-1. **Prerequisites**: Ensure Docker and Docker Compose are installed on your system.
-1. **Environment Setup**:
-   - Navigate to the `docker` directory.
-   - Copy the `.env.example` file to a new file named `.env` by running `cp .env.example .env`.
-   - Customize the `.env` file as needed. Refer to the `.env.example` file for detailed configuration options.
-1. **Running the Services**:
-   - Execute `docker compose up` from the `docker` directory to start the services.
-   - To specify a vector database, set the `VECTOR_STORE` variable in your `.env` file to your desired vector database service, such as `milvus`, `weaviate`, or `opensearch`.
-1. **SSL Certificate Setup**:
-   - Refer `docker/certbot/README.md` to set up SSL certificates using Certbot.
-1. **OpenTelemetry Collector Setup**:
-   - Change `ENABLE_OTEL` to `true` in `.env`.
-   - Configure `OTLP_BASE_ENDPOINT` properly.
+### 2. 访问应用
 
-### How to Deploy Middleware for Developing Dify
+- **Web前端**: http://localhost:3000
+- **Nginx代理**: http://localhost:80
 
-1. **Middleware Setup**:
-   - Use the `docker-compose.middleware.yaml` for setting up essential middleware services like databases and caches.
-   - Navigate to the `docker` directory.
-   - Ensure the `middleware.env` file is created by running `cp middleware.env.example middleware.env` (refer to the `middleware.env.example` file).
-1. **Running Middleware Services**:
-   - Navigate to the `docker` directory.
-   - Execute `docker compose -f docker-compose.middleware.yaml --profile weaviate -p dify up -d` to start the middleware services. (Change the profile to other vector database if you are not using weaviate)
+### 3. 管理服务
 
-### Migration for Existing Users
+```bash
+# 查看服务状态
+docker-compose ps
 
-For users migrating from the `docker-legacy` setup:
+# 查看日志
+docker-compose logs
 
-1. **Review Changes**: Familiarize yourself with the new `.env` configuration and Docker Compose setup.
-1. **Transfer Customizations**:
-   - If you have customized configurations such as `docker-compose.yaml`, `ssrf_proxy/squid.conf`, or `nginx/conf.d/default.conf`, you will need to reflect these changes in the `.env` file you create.
-1. **Data Migration**:
-   - Ensure that data from services like databases and caches is backed up and migrated appropriately to the new structure if necessary.
+# 停止服务
+docker-compose down
 
-### Overview of `.env`
+# 重启服务
+docker-compose restart
+```
 
-#### Key Modules and Customization
+## 🔧 配置说明
 
-- **Vector Database Services**: Depending on the type of vector database used (`VECTOR_STORE`), users can set specific endpoints, ports, and authentication details.
-- **Storage Services**: Depending on the storage type (`STORAGE_TYPE`), users can configure specific settings for S3, Azure Blob, Google Storage, etc.
-- **API and Web Services**: Users can define URLs and other settings that affect how the API and web frontend operate.
+### 环境变量
 
-#### Other notable variables
+主要配置在 `env.custom` 文件中：
 
-The `.env.example` file provided in the Docker setup is extensive and covers a wide range of configuration options. It is structured into several sections, each pertaining to different aspects of the application and its services. Here are some of the key sections and variables:
+- **数据库配置**: DB_USERNAME, DB_PASSWORD, DB_HOST等
+- **Redis配置**: REDIS_HOST, REDIS_PASSWORD等
+- **API URL配置**: CONSOLE_API_URL, APP_API_URL等
+- **向量存储配置**: VECTOR_STORE, WEAVIATE_ENDPOINT等
 
-1. **Common Variables**:
+### 端口配置
 
-   - `CONSOLE_API_URL`, `SERVICE_API_URL`: URLs for different API services.
-   - `APP_WEB_URL`: Frontend application URL.
-   - `FILES_URL`: Base URL for file downloads and previews.
+- **80**: Nginx反向代理
+- **3000**: Web前端
+- **5001**: API服务
+- **5432**: PostgreSQL数据库
+- **6379**: Redis缓存
+- **8080**: Weaviate向量存储
 
-1. **Server Configuration**:
+## 📊 服务说明
 
-   - `LOG_LEVEL`, `DEBUG`, `FLASK_DEBUG`: Logging and debug settings.
-   - `SECRET_KEY`: A key for encrypting session cookies and other sensitive data.
+### Web前端 (web)
+- 使用我们修改过的web代码
+- 包含认证集成功能
+- 端口: 3000
 
-1. **Database Configuration**:
+### API服务 (api)
+- 使用官方dify-api:1.9.2镜像
+- 提供REST API接口
+- 端口: 5001
 
-   - `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`: PostgreSQL database credentials and connection details.
+### Worker服务 (worker)
+- 处理异步任务
+- 使用Celery
 
-1. **Redis Configuration**:
+### Worker Beat服务 (worker_beat)
+- 定时任务调度
+- 使用Celery Beat
 
-   - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`: Redis server connection settings.
+### 数据库 (db)
+- PostgreSQL 15
+- 存储应用数据
 
-1. **Celery Configuration**:
+### 缓存 (redis)
+- Redis 6
+- 缓存和会话存储
 
-   - `CELERY_BROKER_URL`: Configuration for Celery message broker.
+### 向量存储 (weaviate)
+- Weaviate 1.27.0
+- 向量数据库
 
-1. **Storage Configuration**:
+### 反向代理 (nginx)
+- Nginx
+- 统一入口
 
-   - `STORAGE_TYPE`, `S3_BUCKET_NAME`, `AZURE_BLOB_ACCOUNT_NAME`: Settings for file storage options like local, S3, Azure Blob, etc.
+## 🔍 故障排除
 
-1. **Vector Database Configuration**:
+### 1. 端口冲突
 
-   - `VECTOR_STORE`: Type of vector database (e.g., `weaviate`, `milvus`).
-   - Specific settings for each vector store like `WEAVIATE_ENDPOINT`, `MILVUS_URI`.
+如果端口被占用，修改 `env.custom` 文件中的端口配置：
 
-1. **CORS Configuration**:
+```bash
+EXPOSE_NGINX_PORT=8080
+```
 
-   - `WEB_API_CORS_ALLOW_ORIGINS`, `CONSOLE_CORS_ALLOW_ORIGINS`: Settings for cross-origin resource sharing.
+### 2. 服务启动失败
 
-1. **OpenTelemetry Configuration**:
+检查Docker日志：
 
-   - `ENABLE_OTEL`: Enable OpenTelemetry collector in api.
-   - `OTLP_BASE_ENDPOINT`: Endpoint for your OTLP exporter.
+```bash
+docker-compose -f docker-compose.custom.yml --env-file env.custom logs [service_name]
+```
 
-1. **Other Service-Specific Environment Variables**:
+### 3. 数据库连接问题
 
-   - Each service like `nginx`, `redis`, `db`, and vector databases have specific environment variables that are directly referenced in the `docker-compose.yaml`.
+确保数据库服务已启动：
 
-### Additional Information
+```bash
+docker-compose -f docker-compose.custom.yml --env-file env.custom ps db
+```
 
-- **Continuous Improvement Phase**: We are actively seeking feedback from the community to refine and enhance the deployment process. As more users adopt this new method, we will continue to make improvements based on your experiences and suggestions.
-- **Support**: For detailed configuration options and environment variable settings, refer to the `.env.example` file and the Docker Compose configuration files in the `docker` directory.
+### 4. 权限问题
 
-This README aims to guide you through the deployment process using the new Docker Compose setup. For any issues or further assistance, please refer to the official documentation or contact support.
+确保volumes目录有正确权限：
+
+```bash
+chmod -R 755 volumes/
+```
+
+## 📝 注意事项
+
+1. **首次启动**: 首次启动可能需要几分钟时间，等待所有服务就绪
+2. **数据持久化**: 数据保存在 `./volumes/` 目录中
+3. **资源要求**: 建议至少4GB内存
+4. **网络要求**: 确保端口80、3000、5001未被占用
+
+## 🔄 更新部署
+
+### 更新Web前端
+
+1. 修改web代码
+2. 重新构建镜像：
+
+```bash
+docker-compose -f docker-compose.custom.yml --env-file env.custom build web
+```
+
+3. 重启服务：
+
+```bash
+docker-compose -f docker-compose.custom.yml --env-file env.custom up -d web
+```
+
+### 更新API服务
+
+1. 修改 `docker-compose.custom.yml` 中的API镜像版本
+2. 重启服务：
+
+```bash
+docker-compose -f docker-compose.custom.yml --env-file env.custom up -d api
+```
+
+## 📞 支持
+
+如果遇到问题，请检查：
+
+1. Docker和Docker Compose版本
+2. 系统资源（内存、磁盘空间）
+3. 网络连接
+4. 日志文件
+
+## 🎯 特性
+
+- ✅ 使用我们自己的web前端
+- ✅ 包含认证集成功能
+- ✅ 使用官方API服务
+- ✅ 完整的Docker化部署
+- ✅ 数据持久化
+- ✅ 反向代理支持
+- ✅ 易于管理和维护

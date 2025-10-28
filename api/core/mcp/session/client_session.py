@@ -284,7 +284,7 @@ class ClientSession(
 
     def complete(
         self,
-        ref: types.ResourceTemplateReference | types.PromptReference,
+        ref: types.ResourceReference | types.PromptReference,
         argument: dict[str, str],
     ) -> types.CompleteResult:
         """Send a completion/complete request."""

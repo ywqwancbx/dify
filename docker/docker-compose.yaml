@@ -51,7 +51,6 @@ x-shared-env: &shared-api-worker-env
   ENABLE_WEBSITE_JINAREADER: ${ENABLE_WEBSITE_JINAREADER:-true}
   ENABLE_WEBSITE_FIRECRAWL: ${ENABLE_WEBSITE_FIRECRAWL:-true}
   ENABLE_WEBSITE_WATERCRAWL: ${ENABLE_WEBSITE_WATERCRAWL:-true}
-  NEXT_PUBLIC_ENABLE_SINGLE_DOLLAR_LATEX: ${NEXT_PUBLIC_ENABLE_SINGLE_DOLLAR_LATEX:-false}
   DB_USERNAME: ${DB_USERNAME:-postgres}
   DB_PASSWORD: ${DB_PASSWORD:-difyai123456}
   DB_HOST: ${DB_HOST:-db}
@@ -610,9 +609,11 @@ x-shared-env: &shared-api-worker-env
   ENABLE_CHECK_UPGRADABLE_PLUGIN_TASK: ${ENABLE_CHECK_UPGRADABLE_PLUGIN_TASK:-true}
 
 services:
-  # API service
+  # API service - 使用自编译后端
   api:
-    image: langgenius/dify-api:1.9.2
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -638,10 +639,12 @@ services:
       - ssrf_proxy_network
       - default
 
-  # worker service
+  # worker service - 使用自编译后端
   # The Celery worker for processing the queue.
   worker:
-    image: langgenius/dify-api:1.9.2
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -665,10 +668,12 @@ services:
       - ssrf_proxy_network
       - default
 
-  # worker_beat service
+  # worker_beat service - 使用自编译后端
   # Celery beat for scheduling periodic tasks.
   worker_beat:
-    image: langgenius/dify-api:1.9.2
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -684,13 +689,15 @@ services:
       - ssrf_proxy_network
       - default
 
-  # Frontend web application.
+  # Frontend web application - 使用dify官方web镜像
   web:
     image: langgenius/dify-web:1.9.2
     restart: always
     environment:
       CONSOLE_API_URL: ${CONSOLE_API_URL:-}
       APP_API_URL: ${APP_API_URL:-}
+      NEXT_PUBLIC_API_PREFIX: ${NEXT_PUBLIC_API_PREFIX:-/console/api}
+      NEXT_PUBLIC_PUBLIC_API_PREFIX: ${NEXT_PUBLIC_PUBLIC_API_PREFIX:-/api}
       SENTRY_DSN: ${WEB_SENTRY_DSN:-}
       NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED:-0}
       TEXT_GENERATION_TIMEOUT_MS: ${TEXT_GENERATION_TIMEOUT_MS:-60000}
@@ -936,8 +943,8 @@ services:
       - api
       - web
     ports:
-      - "${EXPOSE_NGINX_PORT:-80}:${NGINX_PORT:-80}"
-      - "${EXPOSE_NGINX_SSL_PORT:-443}:${NGINX_SSL_PORT:-443}"
+      - "${EXPOSE_NGINX_PORT:-8080}:${NGINX_PORT:-80}"  # 修改端口避免冲突
+      - "${EXPOSE_NGINX_SSL_PORT:-8443}:${NGINX_SSL_PORT:-443}"  # 修改SSL端口避免冲突
 
   # The Weaviate vector store.
   weaviate:

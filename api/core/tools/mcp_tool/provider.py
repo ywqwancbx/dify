@@ -1,6 +1,6 @@
+import json
 from typing import Any, Self
 
-from core.entities.mcp_provider import MCPProviderEntity
 from core.mcp.types import Tool as RemoteMCPTool
 from core.tools.__base.tool_provider import ToolProviderController
 from core.tools.__base.tool_runtime import ToolRuntime
@@ -52,25 +52,18 @@ class MCPToolProviderController(ToolProviderController):
         """
         from db provider
         """
-        # Convert to entity first
-        provider_entity = db_provider.to_entity()
-        return cls.from_entity(provider_entity)
-
-    @classmethod
-    def from_entity(cls, entity: MCPProviderEntity) -> Self:
-        """
-        create a MCPToolProviderController from a MCPProviderEntity
-        """
-        remote_mcp_tools = [RemoteMCPTool(**tool) for tool in entity.tools]
-
+        tools = []
+        tools_data = json.loads(db_provider.tools)
+        remote_mcp_tools = [RemoteMCPTool.model_validate(tool) for tool in tools_data]
+        user = db_provider.load_user()
         tools = [
             ToolEntity(
                 identity=ToolIdentity(
-                    author="Anonymous",  # Tool level author is not stored
+                    author=user.name if user else "Anonymous",
                     name=remote_mcp_tool.name,
                     label=I18nObject(en_US=remote_mcp_tool.name, zh_Hans=remote_mcp_tool.name),
-                    provider=entity.provider_id,
-                    icon=entity.icon if isinstance(entity.icon, str) else "",
+                    provider=db_provider.server_identifier,
+                    icon=db_provider.icon,
                 ),
                 parameters=ToolTransformService.convert_mcp_schema_to_parameter(remote_mcp_tool.inputSchema),
                 description=ToolDescription(
@@ -79,32 +72,31 @@ class MCPToolProviderController(ToolProviderController):
                     ),
                     llm=remote_mcp_tool.description or "",
                 ),
-                output_schema=remote_mcp_tool.outputSchema or {},
                 has_runtime_parameters=len(remote_mcp_tool.inputSchema) > 0,
             )
             for remote_mcp_tool in remote_mcp_tools
         ]
-        if not entity.icon:
+        if not db_provider.icon:
             raise ValueError("Database provider icon is required")
         return cls(
             entity=ToolProviderEntityWithPlugin(
                 identity=ToolProviderIdentity(
-                    author="Anonymous",  # Provider level author is not stored in entity
-                    name=entity.name,
-                    label=I18nObject(en_US=entity.name, zh_Hans=entity.name),
+                    author=user.name if user else "Anonymous",
+                    name=db_provider.name,
+                    label=I18nObject(en_US=db_provider.name, zh_Hans=db_provider.name),
                     description=I18nObject(en_US="", zh_Hans=""),
-                    icon=entity.icon if isinstance(entity.icon, str) else "",
+                    icon=db_provider.icon,
                 ),
                 plugin_id=None,
                 credentials_schema=[],
                 tools=tools,
             ),
-            provider_id=entity.provider_id,
-            tenant_id=entity.tenant_id,
-            server_url=entity.server_url,
-            headers=entity.headers,
-            timeout=entity.timeout,
-            sse_read_timeout=entity.sse_read_timeout,
+            provider_id=db_provider.server_identifier or "",
+            tenant_id=db_provider.tenant_id or "",
+            server_url=db_provider.decrypted_server_url,
+            headers=db_provider.decrypted_headers or {},
+            timeout=db_provider.timeout,
+            sse_read_timeout=db_provider.sse_read_timeout,
         )
 
     def _validate_credentials(self, user_id: str, credentials: dict[str, Any]):
