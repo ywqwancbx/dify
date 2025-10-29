@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any, Union
 
 from yarl import URL
+from pydantic import ValidationError
 
 from configs import dify_config
 from core.helper.provider_cache import ToolProviderCredentialsCache
@@ -232,35 +233,51 @@ class ToolTransformService:
         )
 
     @staticmethod
-    def mcp_provider_to_user_provider(db_provider: MCPToolProvider, for_list: bool = False) -> ToolProviderApiEntity:
-        user = db_provider.load_user()
-        return ToolProviderApiEntity(
-            id=db_provider.server_identifier if not for_list else db_provider.id,
-            author=user.name if user else "Anonymous",
-            name=db_provider.name,
-            icon=db_provider.provider_icon,
-            type=ToolProviderType.MCP,
-            is_team_authorization=db_provider.authed,
-            server_url=db_provider.masked_server_url,
-            tools=ToolTransformService.mcp_tool_to_user_tool(
-                db_provider, [MCPTool.model_validate(tool) for tool in json.loads(db_provider.tools)]
-            ),
-            updated_at=int(db_provider.updated_at.timestamp()),
-            label=I18nObject(en_US=db_provider.name, zh_Hans=db_provider.name),
-            description=I18nObject(en_US="", zh_Hans=""),
-            server_identifier=db_provider.server_identifier,
-            timeout=db_provider.timeout,
-            sse_read_timeout=db_provider.sse_read_timeout,
-            masked_headers=db_provider.masked_headers,
-            original_headers=db_provider.decrypted_headers,
-        )
+    def mcp_provider_to_user_provider(
+        db_provider: MCPToolProvider,
+        for_list: bool = False,
+        user_name: str | None = None,
+        include_sensitive: bool = True,
+    ) -> ToolProviderApiEntity:
+        from core.entities.mcp_provider import MCPConfiguration
+
+        # Use provided user_name to avoid N+1 query, fallback to load_user() if not provided
+        if user_name is None:
+            user = db_provider.load_user()
+            user_name = user.name if user else None
+
+        # Convert to entity and use its API response method
+        provider_entity = db_provider.to_entity()
+
+        response = provider_entity.to_api_response(user_name=user_name, include_sensitive=include_sensitive)
+        try:
+            mcp_tools = [MCPTool(**tool) for tool in json.loads(db_provider.tools)]
+        except (ValidationError, json.JSONDecodeError):
+            mcp_tools = []
+        # Add additional fields specific to the transform
+        response["id"] = db_provider.server_identifier if not for_list else db_provider.id
+        response["tools"] = ToolTransformService.mcp_tool_to_user_tool(db_provider, mcp_tools, user_name=user_name)
+        response["server_identifier"] = db_provider.server_identifier
+
+        # Convert configuration dict to MCPConfiguration object
+        if "configuration" in response and isinstance(response["configuration"], dict):
+            response["configuration"] = MCPConfiguration(
+                timeout=float(response["configuration"]["timeout"]),
+                sse_read_timeout=float(response["configuration"]["sse_read_timeout"]),
+            )
+
+        return ToolProviderApiEntity(**response)
 
     @staticmethod
-    def mcp_tool_to_user_tool(mcp_provider: MCPToolProvider, tools: list[MCPTool]) -> list[ToolApiEntity]:
-        user = mcp_provider.load_user()
+    def mcp_tool_to_user_tool(
+        mcp_provider: MCPToolProvider,
+        tools: list[MCPTool],
+        user_name: str | None = None,
+    ) -> list[ToolApiEntity]:
+        user = mcp_provider.load_user() if user_name is None else None
         return [
             ToolApiEntity(
-                author=user.name if user else "Anonymous",
+                author=(user_name if user_name is not None else (user.name if user else "Anonymous")),
                 name=tool.name,
                 label=I18nObject(en_US=tool.name, zh_Hans=tool.name),
                 description=I18nObject(en_US=tool.description or "", zh_Hans=tool.description or ""),
