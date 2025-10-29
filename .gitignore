@@ -236,3 +236,5 @@ scripts/stress-test/reports/
 # mcp
 .playwright-mcp/
 .serena/
+docker/volumesbak.zip
+docker/volumes.zip
