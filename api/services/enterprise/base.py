@@ -35,6 +35,9 @@ class BaseRequest:
         json: Any | None = None,
         params: Mapping[str, Any] | None = None,
     ) -> Any:
+        # enterprise not configured → skip
+        if not cls.base_url:
+            return None
         headers = {"Content-Type": "application/json", cls.secret_key_header: cls.secret_key}
         url = f"{cls.base_url}{endpoint}"
         mounts = cls._build_mounts()

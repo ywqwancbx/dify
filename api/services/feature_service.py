@@ -226,6 +226,8 @@ class FeatureService:
     @classmethod
     def _fulfill_params_from_workspace_info(cls, features: FeatureModel, tenant_id: str):
         workspace_info = EnterpriseService.get_workspace_info(tenant_id)
+        if not workspace_info:
+            return
         if "WorkspaceMembers" in workspace_info:
             features.workspace_members.size = workspace_info["WorkspaceMembers"]["used"]
             features.workspace_members.limit = workspace_info["WorkspaceMembers"]["limit"]
@@ -283,6 +285,8 @@ class FeatureService:
     @classmethod
     def _fulfill_params_from_enterprise(cls, features: SystemFeatureModel):
         enterprise_info = EnterpriseService.get_info()
+        if not enterprise_info:
+            return
 
         if "SSOEnforcedForSignin" in enterprise_info:
             features.sso_enforced_for_signin = enterprise_info["SSOEnforcedForSignin"]

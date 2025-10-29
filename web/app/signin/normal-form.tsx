@@ -26,6 +26,7 @@ const NormalForm = () => {
   const isLoggedIn = loginData?.logged_in
   const message = decodeURIComponent(searchParams.get('message') || '')
   const invite_token = decodeURIComponent(searchParams.get('invite_token') || '')
+  const eam_token = searchParams.get('eam_token')
   const [isInitCheckLoading, setInitCheckLoading] = useState(true)
   const isLoading = isCheckLoading || loginData?.logged_in || isInitCheckLoading
   const { systemFeatures } = useGlobalPublicStore()
@@ -42,6 +43,54 @@ const NormalForm = () => {
         const redirectUrl = resolvePostLoginRedirect(searchParams)
         router.replace(redirectUrl || '/apps')
         return
+      }
+
+      // 处理 EAM SSO 登录
+      if (eam_token) {
+        try {
+          setInitCheckLoading(true)
+          const response = await fetch('/api/eam-sso-login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              token: eam_token,
+            }),
+          })
+
+          if (response.ok) {
+            const loginData = await response.json()
+             if (loginData.access_token) {
+               // 设置 localStorage（用于 Public API）
+               localStorage.setItem('access_token', loginData.access_token)
+               
+               // 设置 Cookie（用于 Console API）
+               document.cookie = `access_token=${loginData.access_token}; path=/; max-age=${loginData.expires_in || 3600}; SameSite=Lax`
+               
+               // 设置 CSRF token Cookie（Console API 需要）
+               if (loginData.csrf_token) {
+                 document.cookie = `csrf_token=${loginData.csrf_token}; path=/; max-age=${loginData.expires_in || 3600}; SameSite=Lax`
+               }
+               
+               const redirectUrl = resolvePostLoginRedirect(searchParams)
+               router.replace(redirectUrl || '/apps')
+               return
+             }
+          }
+          
+          // EAM SSO 登录失败，显示错误
+          Toast.notify({
+            type: 'error',
+            message: 'EAM SSO 登录失败，请使用其他方式登录',
+          })
+        } catch (error) {
+          console.error('EAM SSO login error:', error)
+          Toast.notify({
+            type: 'error',
+            message: 'EAM SSO 登录失败，请使用其他方式登录',
+          })
+        }
       }
 
       if (message) {
@@ -68,7 +117,7 @@ const NormalForm = () => {
       setAllMethodsAreDisabled(true)
     }
     finally { setInitCheckLoading(false) }
-  }, [isLoggedIn, message, router, invite_token, isInviteLink, systemFeatures])
+  }, [isLoggedIn, message, router, invite_token, isInviteLink, systemFeatures, eam_token])
   useEffect(() => {
     init()
   }, [init])
