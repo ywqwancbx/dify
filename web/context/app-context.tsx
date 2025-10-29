@@ -91,7 +91,15 @@ export const AppContextProvider: FC<AppContextProviderProps> = ({ children }) =>
     if (userProfileResponse && !userProfileResponse.bodyUsed) {
       try {
         const result = await userProfileResponse.json()
-        setUserProfile(result)
+        // ensure timezone is a valid string; fallback to browser timezone or UTC
+        const browserTz = (() => {
+          try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+          } catch {
+            return 'UTC'
+          }
+        })()
+        setUserProfile({ ...result, timezone: result.timezone ?? browserTz })
         const current_version = userProfileResponse.headers.get('x-version')
         const current_env = process.env.NODE_ENV === 'development' ? 'DEVELOPMENT' : userProfileResponse.headers.get('x-env')
         const versionData = await fetchLangGeniusVersion({ url: '/version', params: { current_version } })
