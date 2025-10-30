@@ -143,6 +143,9 @@ class EAMSSOLoginResource(Resource):
             account.name = username
             if provided_email and account.email != provided_email:
                 account.email = provided_email
+            # 若缺失时区，补默认值（与 EAM 保持一致: UTC）
+            if not getattr(account, 'timezone', None) or str(account.timezone).strip() == "":
+                account.timezone = 'UTC'
             db.session.commit()
             
             # 检查是否有关联的Tenant，如果没有则创建
@@ -160,7 +163,8 @@ class EAMSSOLoginResource(Resource):
                 email=(provided_email or pseudo_email),
                 password='',  # 外部用户不需要密码
                 status='active',
-                interface_language='en-US'
+                interface_language='en-US',
+                timezone='UTC',
             )
             
             db.session.add(account)
