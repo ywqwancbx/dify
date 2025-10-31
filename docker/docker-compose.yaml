@@ -813,10 +813,13 @@ services:
 
   # plugin daemon
   plugin_daemon:
-    image: langgenius/dify-plugin-daemon:0.3.3-local
+    build:
+      context: ../../dify-plugin-daemon
+      dockerfile: docker/local.dockerfile
+      args:
+        VERSION: "0.3.3"
     restart: always
     environment:
-      # Use the shared environment variables.
       <<: *shared-api-worker-env
       DB_DATABASE: ${DB_PLUGIN_DATABASE:-dify_plugin}
       SERVER_PORT: ${PLUGIN_DAEMON_PORT:-5002}
