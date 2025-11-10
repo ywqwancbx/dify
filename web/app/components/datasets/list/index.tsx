@@ -92,7 +92,7 @@ const List = () => {
         </div>
       </div>
       <Datasets tags={tagIDs} keywords={searchKeywords} includeAll={includeAll} />
-      {!systemFeatures.branding.enabled && <DatasetFooter />}
+      {/* {!systemFeatures.branding.enabled && <DatasetFooter />} */}
       {showTagManagementModal && (
         <TagManagementModal type='knowledge' show={showTagManagementModal} />
       )}
