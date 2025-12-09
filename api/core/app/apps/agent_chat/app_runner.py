@@ -145,7 +145,7 @@ class AgentChatAppRunner(AppRunner):
             prompt_template_entity=app_config.prompt_template,
             inputs=dict(inputs),
             files=list(files),
-            query=query or "",
+            query=query,
             memory=memory,
         )
 
@@ -173,7 +173,7 @@ class AgentChatAppRunner(AppRunner):
             prompt_template_entity=app_config.prompt_template,
             inputs=dict(inputs),
             files=list(files),
-            query=query or "",
+            query=query,
             memory=memory,
         )
 
