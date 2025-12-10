@@ -78,8 +78,8 @@ services:
       SANDBOX_PORT: ${SANDBOX_PORT:-8194}
       PIP_MIRROR_URL: ${PIP_MIRROR_URL:-}
     volumes:
-      - ./volumes/sandbox/dependencies:/dependencies
-      - ./volumes/sandbox/conf:/conf
+      - ${SANDBOX_DEPENDENCIES_VOLUME:-./volumes-dev/sandbox/dependencies}:/dependencies
+      - ${SANDBOX_CONF_VOLUME:-./volumes-dev/sandbox/conf}:/conf
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8194/health"]
     networks:
@@ -141,14 +141,14 @@ services:
       VOLCENGINE_TOS_ACCESS_KEY: ${PLUGIN_VOLCENGINE_TOS_ACCESS_KEY:-}
       VOLCENGINE_TOS_SECRET_KEY: ${PLUGIN_VOLCENGINE_TOS_SECRET_KEY:-}
       VOLCENGINE_TOS_REGION: ${PLUGIN_VOLCENGINE_TOS_REGION:-}
-      THIRD_PARTY_SIGNATURE_VERIFICATION_ENABLED: true
+      THIRD_PARTY_SIGNATURE_VERIFICATION_ENABLED: "true"
       THIRD_PARTY_SIGNATURE_VERIFICATION_PUBLIC_KEYS: /app/keys/publickey.pem
-      FORCE_VERIFYING_SIGNATURE: false
+      FORCE_VERIFYING_SIGNATURE: "false"
     ports:
       - "${EXPOSE_PLUGIN_DAEMON_PORT:-5002}:${PLUGIN_DAEMON_PORT:-5002}"
       - "${EXPOSE_PLUGIN_DEBUGGING_PORT:-5003}:${PLUGIN_DEBUGGING_PORT:-5003}"
     volumes:
-      - ./volumes/plugin_daemon:/app/storage
+      - ${PLUGIN_DAEMON_HOST_VOLUME:-./volumes-dev/plugin_daemon}:/app/storage
 
   # ssrf_proxy server
   # for more information, please refer to
@@ -190,7 +190,7 @@ services:
     restart: always
     volumes:
       # Mount the Weaviate data directory to the container.
-      - ${WEAVIATE_HOST_VOLUME:-./volumes/weaviate}:/var/lib/weaviate
+      - ${WEAVIATE_HOST_VOLUME:-./volumes-dev/weaviate}:/var/lib/weaviate
     env_file:
       - ./middleware.env
     environment:

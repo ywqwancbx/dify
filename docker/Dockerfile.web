@@ -19,12 +19,12 @@ COPY ./web/package.json ./web/pnpm-lock.yaml ./
 RUN npm install -g pnpm@10.19.0
 
 # 配置代理和国内镜像源
-RUN npm config set proxy http://192.168.2.170:18111 \
-    && npm config set https-proxy http://192.168.2.170:18111 \
-    && npm config set registry https://registry.npmmirror.com \
-    && pnpm config set proxy http://192.168.2.170:18111 \
-    && pnpm config set https-proxy http://192.168.2.170:18111 \
-    && pnpm config set registry https://registry.npmmirror.com
+# RUN npm config set proxy http://192.168.2.170:18111 \
+#     && npm config set https-proxy http://192.168.2.170:18111 \
+#     && npm config set registry https://registry.npmmirror.com \
+#     && pnpm config set proxy http://192.168.2.170:18111 \
+#     && pnpm config set https-proxy http://192.168.2.170:18111 \
+#     && pnpm config set registry https://registry.npmmirror.com
 
 # 安装依赖
 RUN pnpm install --frozen-lockfile
@@ -32,7 +32,8 @@ RUN pnpm install --frozen-lockfile
 # 复制源代码
 COPY ./web .
 
-# 构建应用 - 增加内存限制
+# 构建应用 - 使用4GB内存限制（已有8GB Swap在独立磁盘支持）
+# Next.js构建需要较多内存，增加到4GB
 RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm build
 
 # 生产环境镜像
@@ -54,12 +55,12 @@ WORKDIR /app/web
 RUN npm install -g pnpm@10.19.0
 
 # 配置代理和国内镜像源
-RUN npm config set proxy http://192.168.2.170:18111 \
-    && npm config set https-proxy http://192.168.2.170:18111 \
-    && npm config set registry https://registry.npmmirror.com \
-    && pnpm config set proxy http://192.168.2.170:18111 \
-    && pnpm config set https-proxy http://192.168.2.170:18111 \
-    && pnpm config set registry https://registry.npmmirror.com
+# RUN npm config set proxy http://192.168.2.170:18111 \
+#     && npm config set https-proxy http://192.168.2.170:18111 \
+#     && npm config set registry https://registry.npmmirror.com \
+#     && pnpm config set proxy http://192.168.2.170:18111 \
+#     && pnpm config set https-proxy http://192.168.2.170:18111 \
+#     && pnpm config set registry https://registry.npmmirror.com
 
 # 复制package.json和pnpm-lock.yaml
 COPY ./web/package.json ./web/pnpm-lock.yaml ./

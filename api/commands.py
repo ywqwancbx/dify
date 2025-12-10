@@ -703,6 +703,32 @@ def upgrade_db():
 
             # run db migration
             import flask_migrate
+            from flask_migrate import upgrade as migrate_upgrade
+            import subprocess
+
+            # Check for multiple heads and merge if needed
+            try:
+                result = subprocess.run(
+                    ['flask', 'db', 'heads'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result.returncode == 0 and result.stdout.strip().count('(head)') > 1:
+                    click.echo("Multiple heads detected, merging...")
+                    merge_result = subprocess.run(
+                        ['flask', 'db', 'merge', 'heads', '-m', 'merge multiple heads'],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if merge_result.returncode == 0:
+                        click.echo("Merge completed successfully")
+                    else:
+                        logger.warning(f"Merge attempt output: {merge_result.stderr}")
+            except (subprocess.TimeoutExpired, Exception) as merge_err:
+                # If merge check fails, continue with upgrade
+                logger.debug(f"Merge check failed (may be normal): {merge_err}")
 
             flask_migrate.upgrade()
 

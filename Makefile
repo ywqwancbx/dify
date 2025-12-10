@@ -40,11 +40,8 @@ prepare-api:
 dev-clean:
 	@echo "⚠️  Stopping Docker containers..."
 	@cd docker && docker compose -f docker-compose.middleware.yaml --env-file middleware.env -p dify-middlewares-dev down
-	@echo "🗑️  Removing volumes..."
-	@rm -rf docker/volumes/db
-	@rm -rf docker/volumes/redis
-	@rm -rf docker/volumes/plugin_daemon
-	@rm -rf docker/volumes/weaviate
+	@echo "🗑️  Removing dev volumes..."
+	@rm -rf docker/volumes-dev
 	@rm -rf api/storage
 	@echo "✅ Cleanup complete"
 

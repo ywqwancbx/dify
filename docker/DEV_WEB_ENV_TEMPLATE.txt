@@ -1,0 +1,10 @@
+# Dev 环境 Web 配置模板
+# 复制这些配置到 web/.env.local 文件中
+
+# 开发环境
+NEXT_PUBLIC_DEPLOY_ENV=DEVELOPMENT
+NEXT_PUBLIC_EDITION=SELF_HOSTED
+
+# API 地址 - 连接到本地运行的 API (端口 5001)
+NEXT_PUBLIC_API_PREFIX=http://localhost:5001/console/api
+NEXT_PUBLIC_PUBLIC_API_PREFIX=http://localhost:5001/api

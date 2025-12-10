@@ -22,6 +22,8 @@ fi
 # 创建必要的目录
 echo "📁 创建必要的目录..."
 mkdir -p volumes/app/storage
+mkdir -p volumes/plugin_daemon/assets
+mkdir -p volumes/plugin_daemon/cwd
 mkdir -p volumes/db/data
 mkdir -p volumes/redis/data
 mkdir -p volumes/weaviate
