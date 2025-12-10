@@ -630,9 +630,11 @@ x-shared-env: &shared-api-worker-env
   TENANT_ISOLATED_TASK_CONCURRENCY: ${TENANT_ISOLATED_TASK_CONCURRENCY:-1}
 
 services:
-  # API service
+  # API service - 使用自编译后端
   api:
-    image: langgenius/dify-api:1.10.1-fix.1
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -640,12 +642,19 @@ services:
       # Startup mode, 'api' starts the API server.
       MODE: api
       SENTRY_DSN: ${API_SENTRY_DSN:-}
+      # Enterprise features
+      ENTERPRISE_ENABLED: ${ENTERPRISE_ENABLED:-false}
       SENTRY_TRACES_SAMPLE_RATE: ${API_SENTRY_TRACES_SAMPLE_RATE:-1.0}
       SENTRY_PROFILES_SAMPLE_RATE: ${API_SENTRY_PROFILES_SAMPLE_RATE:-1.0}
       PLUGIN_REMOTE_INSTALL_HOST: ${EXPOSE_PLUGIN_DEBUGGING_HOST:-localhost}
       PLUGIN_REMOTE_INSTALL_PORT: ${EXPOSE_PLUGIN_DEBUGGING_PORT:-5003}
       PLUGIN_MAX_PACKAGE_SIZE: ${PLUGIN_MAX_PACKAGE_SIZE:-52428800}
       INNER_API_KEY_FOR_PLUGIN: ${PLUGIN_DIFY_INNER_API_KEY:-QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1}
+      # EAM集成配置
+      EAM_VERIFY_URL: ${EAM_VERIFY_URL:-http://10.8.8.2:8000/api/v1/external/dify/verify}
+      # 文件服务配置
+      FILES_URL: ${FILES_URL:-http://10.8.8.2:8080/files}
+      INTERNAL_FILES_URL: ${INTERNAL_FILES_URL:-http://api:5001/files}
     depends_on:
       db_postgres:
         condition: service_healthy
@@ -668,10 +677,12 @@ services:
       - ssrf_proxy_network
       - default
 
-  # worker service
-  # The Celery worker for processing all queues (dataset, workflow, mail, etc.)
+  # worker service - 使用自编译后端
+  # The Celery worker for processing the queue.
   worker:
-    image: langgenius/dify-api:1.10.1-fix.1
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -705,10 +716,12 @@ services:
       - ssrf_proxy_network
       - default
 
-  # worker_beat service
+  # worker_beat service - 使用自编译后端
   # Celery beat for scheduling periodic tasks.
   worker_beat:
-    image: langgenius/dify-api:1.10.1-fix.1
+    build:
+      context: ../api
+      dockerfile: Dockerfile
     restart: always
     environment:
       # Use the shared environment variables.
@@ -734,13 +747,22 @@ services:
       - ssrf_proxy_network
       - default
 
-  # Frontend web application.
+  # Frontend web application - 本地构建前端
   web:
-    image: langgenius/dify-web:1.10.1-fix.1
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      # args:
+      #   HTTP_PROXY: http://192.168.2.170:18111
+      #   HTTPS_PROXY: http://192.168.2.170:18111
+      #   NO_PROXY: localhost,127.0.0.1
     restart: always
     environment:
       CONSOLE_API_URL: ${CONSOLE_API_URL:-}
       APP_API_URL: ${APP_API_URL:-}
+      NEXT_PUBLIC_API_PREFIX: ${NEXT_PUBLIC_API_PREFIX:-/console/api}
+      NEXT_PUBLIC_PUBLIC_API_PREFIX: ${NEXT_PUBLIC_PUBLIC_API_PREFIX:-/api}
+      NEXT_PUBLIC_MARKETPLACE_API_PREFIX: ${NEXT_PUBLIC_MARKETPLACE_API_PREFIX:-http://localhost:5002/api}
       NEXT_PUBLIC_COOKIE_DOMAIN: ${NEXT_PUBLIC_COOKIE_DOMAIN:-}
       SENTRY_DSN: ${WEB_SENTRY_DSN:-}
       NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED:-0}
@@ -873,10 +895,13 @@ services:
 
   # plugin daemon
   plugin_daemon:
-    image: langgenius/dify-plugin-daemon:0.4.1-local
+    build:
+      context: ../../dify-plugin-daemon
+      dockerfile: docker/local.dockerfile
+      args:
+        VERSION: "0.3.3"
     restart: always
     environment:
-      # Use the shared environment variables.
       <<: *shared-api-worker-env
       DB_DATABASE: ${DB_PLUGIN_DATABASE:-dify_plugin}
       SERVER_PORT: ${PLUGIN_DAEMON_PORT:-5002}
@@ -925,6 +950,7 @@ services:
       SENTRY_ENABLED: ${PLUGIN_SENTRY_ENABLED:-false}
       SENTRY_DSN: ${PLUGIN_SENTRY_DSN:-}
     ports:
+      - "${EXPOSE_PLUGIN_DAEMON_PORT:-5002}:${PLUGIN_DAEMON_PORT:-5002}"
       - "${EXPOSE_PLUGIN_DEBUGGING_PORT:-5003}:${PLUGIN_DEBUGGING_PORT:-5003}"
     volumes:
       - ./volumes/plugin_daemon:/app/storage
@@ -1030,8 +1056,8 @@ services:
       - api
       - web
     ports:
-      - "${EXPOSE_NGINX_PORT:-80}:${NGINX_PORT:-80}"
-      - "${EXPOSE_NGINX_SSL_PORT:-443}:${NGINX_SSL_PORT:-443}"
+      - "${EXPOSE_NGINX_PORT:-8080}:${NGINX_PORT:-80}"  # 修改端口避免冲突
+      - "${EXPOSE_NGINX_SSL_PORT:-8443}:${NGINX_SSL_PORT:-443}"  # 修改SSL端口避免冲突
 
   # The Weaviate vector store.
   weaviate:

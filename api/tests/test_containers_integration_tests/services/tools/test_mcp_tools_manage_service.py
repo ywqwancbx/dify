@@ -20,21 +20,12 @@ class TestMCPToolManageService:
             patch("services.tools.mcp_tools_manage_service.ToolTransformService") as mock_tool_transform_service,
         ):
             # Setup default mock returns
-            from core.tools.entities.api_entities import ToolProviderApiEntity
-            from core.tools.entities.common_entities import I18nObject
-
             mock_encrypter.encrypt_token.return_value = "encrypted_server_url"
-            mock_tool_transform_service.mcp_provider_to_user_provider.return_value = ToolProviderApiEntity(
-                id="test_id",
-                author="test_author",
-                name="test_name",
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Test Description", zh_Hans="测试描述"),
-                icon={"type": "emoji", "content": "🤖"},
-                label=I18nObject(en_US="Test Label", zh_Hans="测试标签"),
-                labels=[],
-                tools=[],
-            )
+            mock_tool_transform_service.mcp_provider_to_user_provider.return_value = {
+                "id": "test_id",
+                "name": "test_name",
+                "type": ToolProviderType.MCP,
+            }
 
             yield {
                 "encrypter": mock_encrypter,
@@ -113,9 +104,9 @@ class TestMCPToolManageService:
         mcp_provider = MCPToolProvider(
             tenant_id=tenant_id,
             name=fake.company(),
-            server_identifier=str(fake.uuid4()),
+            server_identifier=fake.uuid4(),
             server_url="encrypted_server_url",
-            server_url_hash=str(fake.sha256()),
+            server_url_hash=fake.sha256(),
             user_id=user_id,
             authed=False,
             tools="[]",
@@ -153,10 +144,7 @@ class TestMCPToolManageService:
         )
 
         # Act: Execute the method under test
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result = service.get_provider(provider_id=mcp_provider.id, tenant_id=tenant.id)
+        result = MCPToolManageService.get_mcp_provider_by_provider_id(mcp_provider.id, tenant.id)
 
         # Assert: Verify the expected outcomes
         assert result is not None
@@ -166,6 +154,8 @@ class TestMCPToolManageService:
         assert result.user_id == account.id
 
         # Verify database state
+        from extensions.ext_database import db
+
         db.session.refresh(result)
         assert result.id is not None
         assert result.server_identifier == mcp_provider.server_identifier
@@ -187,14 +177,11 @@ class TestMCPToolManageService:
             db_session_with_containers, mock_external_service_dependencies
         )
 
-        non_existent_id = str(fake.uuid4())
+        non_existent_id = fake.uuid4()
 
         # Act & Assert: Verify proper error handling
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.get_provider(provider_id=non_existent_id, tenant_id=tenant.id)
+            MCPToolManageService.get_mcp_provider_by_provider_id(non_existent_id, tenant.id)
 
     def test_get_mcp_provider_by_provider_id_tenant_isolation(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -223,11 +210,8 @@ class TestMCPToolManageService:
         )
 
         # Act & Assert: Verify tenant isolation
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.get_provider(provider_id=mcp_provider1.id, tenant_id=tenant2.id)
+            MCPToolManageService.get_mcp_provider_by_provider_id(mcp_provider1.id, tenant2.id)
 
     def test_get_mcp_provider_by_server_identifier_success(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -251,10 +235,7 @@ class TestMCPToolManageService:
         )
 
         # Act: Execute the method under test
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result = service.get_provider(server_identifier=mcp_provider.server_identifier, tenant_id=tenant.id)
+        result = MCPToolManageService.get_mcp_provider_by_server_identifier(mcp_provider.server_identifier, tenant.id)
 
         # Assert: Verify the expected outcomes
         assert result is not None
@@ -264,6 +245,8 @@ class TestMCPToolManageService:
         assert result.user_id == account.id
 
         # Verify database state
+        from extensions.ext_database import db
+
         db.session.refresh(result)
         assert result.id is not None
         assert result.name == mcp_provider.name
@@ -285,14 +268,11 @@ class TestMCPToolManageService:
             db_session_with_containers, mock_external_service_dependencies
         )
 
-        non_existent_identifier = str(fake.uuid4())
+        non_existent_identifier = fake.uuid4()
 
         # Act & Assert: Verify proper error handling
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.get_provider(server_identifier=non_existent_identifier, tenant_id=tenant.id)
+            MCPToolManageService.get_mcp_provider_by_server_identifier(non_existent_identifier, tenant.id)
 
     def test_get_mcp_provider_by_server_identifier_tenant_isolation(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -321,11 +301,8 @@ class TestMCPToolManageService:
         )
 
         # Act & Assert: Verify tenant isolation
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.get_provider(server_identifier=mcp_provider1.server_identifier, tenant_id=tenant2.id)
+            MCPToolManageService.get_mcp_provider_by_server_identifier(mcp_provider1.server_identifier, tenant2.id)
 
     def test_create_mcp_provider_success(self, db_session_with_containers, mock_external_service_dependencies):
         """
@@ -345,30 +322,15 @@ class TestMCPToolManageService:
         )
 
         # Setup mocks for provider creation
-        from core.tools.entities.api_entities import ToolProviderApiEntity
-        from core.tools.entities.common_entities import I18nObject
-
         mock_external_service_dependencies["encrypter"].encrypt_token.return_value = "encrypted_server_url"
-        mock_external_service_dependencies[
-            "tool_transform_service"
-        ].mcp_provider_to_user_provider.return_value = ToolProviderApiEntity(
-            id="new_provider_id",
-            author=account.name,
-            name="Test MCP Provider",
-            type=ToolProviderType.MCP,
-            description=I18nObject(en_US="Test MCP Provider Description", zh_Hans="测试MCP提供者描述"),
-            icon={"type": "emoji", "content": "🤖"},
-            label=I18nObject(en_US="Test MCP Provider", zh_Hans="测试MCP提供者"),
-            labels=[],
-            tools=[],
-        )
+        mock_external_service_dependencies["tool_transform_service"].mcp_provider_to_user_provider.return_value = {
+            "id": "new_provider_id",
+            "name": "Test MCP Provider",
+            "type": ToolProviderType.MCP,
+        }
 
         # Act: Execute the method under test
-        from core.entities.mcp_provider import MCPConfiguration
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result = service.create_provider(
+        result = MCPToolManageService.create_mcp_provider(
             tenant_id=tenant.id,
             name="Test MCP Provider",
             server_url="https://example.com/mcp",
@@ -377,16 +339,14 @@ class TestMCPToolManageService:
             icon_type="emoji",
             icon_background="#FF6B6B",
             server_identifier="test_identifier_123",
-            configuration=MCPConfiguration(
-                timeout=30.0,
-                sse_read_timeout=300.0,
-            ),
+            timeout=30.0,
+            sse_read_timeout=300.0,
         )
 
         # Assert: Verify the expected outcomes
         assert result is not None
-        assert result.name == "Test MCP Provider"
-        assert result.type == ToolProviderType.MCP
+        assert result["name"] == "Test MCP Provider"
+        assert result["type"] == ToolProviderType.MCP
 
         # Verify database state
         from extensions.ext_database import db
@@ -426,11 +386,7 @@ class TestMCPToolManageService:
         )
 
         # Create first provider
-        from core.entities.mcp_provider import MCPConfiguration
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        service.create_provider(
+        MCPToolManageService.create_mcp_provider(
             tenant_id=tenant.id,
             name="Test MCP Provider",
             server_url="https://example1.com/mcp",
@@ -439,15 +395,13 @@ class TestMCPToolManageService:
             icon_type="emoji",
             icon_background="#FF6B6B",
             server_identifier="test_identifier_1",
-            configuration=MCPConfiguration(
-                timeout=30.0,
-                sse_read_timeout=300.0,
-            ),
+            timeout=30.0,
+            sse_read_timeout=300.0,
         )
 
         # Act & Assert: Verify proper error handling for duplicate name
         with pytest.raises(ValueError, match="MCP tool Test MCP Provider already exists"):
-            service.create_provider(
+            MCPToolManageService.create_mcp_provider(
                 tenant_id=tenant.id,
                 name="Test MCP Provider",  # Duplicate name
                 server_url="https://example2.com/mcp",
@@ -456,10 +410,8 @@ class TestMCPToolManageService:
                 icon_type="emoji",
                 icon_background="#4ECDC4",
                 server_identifier="test_identifier_2",
-                configuration=MCPConfiguration(
-                    timeout=45.0,
-                    sse_read_timeout=400.0,
-                ),
+                timeout=45.0,
+                sse_read_timeout=400.0,
             )
 
     def test_create_mcp_provider_duplicate_server_url(
@@ -480,11 +432,7 @@ class TestMCPToolManageService:
         )
 
         # Create first provider
-        from core.entities.mcp_provider import MCPConfiguration
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        service.create_provider(
+        MCPToolManageService.create_mcp_provider(
             tenant_id=tenant.id,
             name="Test MCP Provider 1",
             server_url="https://example.com/mcp",
@@ -493,15 +441,13 @@ class TestMCPToolManageService:
             icon_type="emoji",
             icon_background="#FF6B6B",
             server_identifier="test_identifier_1",
-            configuration=MCPConfiguration(
-                timeout=30.0,
-                sse_read_timeout=300.0,
-            ),
+            timeout=30.0,
+            sse_read_timeout=300.0,
         )
 
         # Act & Assert: Verify proper error handling for duplicate server URL
-        with pytest.raises(ValueError, match="MCP tool with this server URL already exists"):
-            service.create_provider(
+        with pytest.raises(ValueError, match="MCP tool https://example.com/mcp already exists"):
+            MCPToolManageService.create_mcp_provider(
                 tenant_id=tenant.id,
                 name="Test MCP Provider 2",
                 server_url="https://example.com/mcp",  # Duplicate URL
@@ -510,10 +456,8 @@ class TestMCPToolManageService:
                 icon_type="emoji",
                 icon_background="#4ECDC4",
                 server_identifier="test_identifier_2",
-                configuration=MCPConfiguration(
-                    timeout=45.0,
-                    sse_read_timeout=400.0,
-                ),
+                timeout=45.0,
+                sse_read_timeout=400.0,
             )
 
     def test_create_mcp_provider_duplicate_server_identifier(
@@ -534,11 +478,7 @@ class TestMCPToolManageService:
         )
 
         # Create first provider
-        from core.entities.mcp_provider import MCPConfiguration
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        service.create_provider(
+        MCPToolManageService.create_mcp_provider(
             tenant_id=tenant.id,
             name="Test MCP Provider 1",
             server_url="https://example1.com/mcp",
@@ -547,15 +487,13 @@ class TestMCPToolManageService:
             icon_type="emoji",
             icon_background="#FF6B6B",
             server_identifier="test_identifier_123",
-            configuration=MCPConfiguration(
-                timeout=30.0,
-                sse_read_timeout=300.0,
-            ),
+            timeout=30.0,
+            sse_read_timeout=300.0,
         )
 
         # Act & Assert: Verify proper error handling for duplicate server identifier
         with pytest.raises(ValueError, match="MCP tool test_identifier_123 already exists"):
-            service.create_provider(
+            MCPToolManageService.create_mcp_provider(
                 tenant_id=tenant.id,
                 name="Test MCP Provider 2",
                 server_url="https://example2.com/mcp",
@@ -564,10 +502,8 @@ class TestMCPToolManageService:
                 icon_type="emoji",
                 icon_background="#4ECDC4",
                 server_identifier="test_identifier_123",  # Duplicate identifier
-                configuration=MCPConfiguration(
-                    timeout=45.0,
-                    sse_read_timeout=400.0,
-                ),
+                timeout=45.0,
+                sse_read_timeout=400.0,
             )
 
     def test_retrieve_mcp_tools_success(self, db_session_with_containers, mock_external_service_dependencies):
@@ -607,59 +543,23 @@ class TestMCPToolManageService:
         db.session.commit()
 
         # Setup mock for transformation service
-        from core.tools.entities.api_entities import ToolProviderApiEntity
-        from core.tools.entities.common_entities import I18nObject
-
         mock_external_service_dependencies["tool_transform_service"].mcp_provider_to_user_provider.side_effect = [
-            ToolProviderApiEntity(
-                id=provider1.id,
-                author=account.name,
-                name=provider1.name,
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Alpha Provider Description", zh_Hans="Alpha提供者描述"),
-                icon={"type": "emoji", "content": "🅰️"},
-                label=I18nObject(en_US=provider1.name, zh_Hans=provider1.name),
-                labels=[],
-                tools=[],
-            ),
-            ToolProviderApiEntity(
-                id=provider2.id,
-                author=account.name,
-                name=provider2.name,
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Beta Provider Description", zh_Hans="Beta提供者描述"),
-                icon={"type": "emoji", "content": "🅱️"},
-                label=I18nObject(en_US=provider2.name, zh_Hans=provider2.name),
-                labels=[],
-                tools=[],
-            ),
-            ToolProviderApiEntity(
-                id=provider3.id,
-                author=account.name,
-                name=provider3.name,
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Gamma Provider Description", zh_Hans="Gamma提供者描述"),
-                icon={"type": "emoji", "content": "Γ"},
-                label=I18nObject(en_US=provider3.name, zh_Hans=provider3.name),
-                labels=[],
-                tools=[],
-            ),
+            {"id": provider1.id, "name": provider1.name, "type": ToolProviderType.MCP},
+            {"id": provider2.id, "name": provider2.name, "type": ToolProviderType.MCP},
+            {"id": provider3.id, "name": provider3.name, "type": ToolProviderType.MCP},
         ]
 
         # Act: Execute the method under test
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result = service.list_providers(tenant_id=tenant.id, for_list=True)
+        result = MCPToolManageService.retrieve_mcp_tools(tenant.id, for_list=True)
 
         # Assert: Verify the expected outcomes
         assert result is not None
         assert len(result) == 3
 
         # Verify correct ordering by name
-        assert result[0].name == "Alpha Provider"
-        assert result[1].name == "Beta Provider"
-        assert result[2].name == "Gamma Provider"
+        assert result[0]["name"] == "Alpha Provider"
+        assert result[1]["name"] == "Beta Provider"
+        assert result[2]["name"] == "Gamma Provider"
 
         # Verify mock interactions
         assert (
@@ -684,10 +584,7 @@ class TestMCPToolManageService:
         # No MCP providers created for this tenant
 
         # Act: Execute the method under test
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result = service.list_providers(tenant_id=tenant.id, for_list=False)
+        result = MCPToolManageService.retrieve_mcp_tools(tenant.id, for_list=False)
 
         # Assert: Verify the expected outcomes
         assert result is not None
@@ -727,46 +624,20 @@ class TestMCPToolManageService:
         )
 
         # Setup mock for transformation service
-        from core.tools.entities.api_entities import ToolProviderApiEntity
-        from core.tools.entities.common_entities import I18nObject
-
         mock_external_service_dependencies["tool_transform_service"].mcp_provider_to_user_provider.side_effect = [
-            ToolProviderApiEntity(
-                id=provider1.id,
-                author=account1.name,
-                name=provider1.name,
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Provider 1 Description", zh_Hans="提供者1描述"),
-                icon={"type": "emoji", "content": "1️⃣"},
-                label=I18nObject(en_US=provider1.name, zh_Hans=provider1.name),
-                labels=[],
-                tools=[],
-            ),
-            ToolProviderApiEntity(
-                id=provider2.id,
-                author=account2.name,
-                name=provider2.name,
-                type=ToolProviderType.MCP,
-                description=I18nObject(en_US="Provider 2 Description", zh_Hans="提供者2描述"),
-                icon={"type": "emoji", "content": "2️⃣"},
-                label=I18nObject(en_US=provider2.name, zh_Hans=provider2.name),
-                labels=[],
-                tools=[],
-            ),
+            {"id": provider1.id, "name": provider1.name, "type": ToolProviderType.MCP},
+            {"id": provider2.id, "name": provider2.name, "type": ToolProviderType.MCP},
         ]
 
         # Act: Execute the method under test for both tenants
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
-        result1 = service.list_providers(tenant_id=tenant1.id, for_list=True)
-        result2 = service.list_providers(tenant_id=tenant2.id, for_list=True)
+        result1 = MCPToolManageService.retrieve_mcp_tools(tenant1.id, for_list=True)
+        result2 = MCPToolManageService.retrieve_mcp_tools(tenant2.id, for_list=True)
 
         # Assert: Verify tenant isolation
         assert len(result1) == 1
         assert len(result2) == 1
-        assert result1[0].id == provider1.id
-        assert result2[0].id == provider2.id
+        assert result1[0]["id"] == provider1.id
+        assert result2[0]["id"] == provider2.id
 
     def test_list_mcp_tool_from_remote_server_success(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -790,20 +661,17 @@ class TestMCPToolManageService:
         mcp_provider = self._create_test_mcp_provider(
             db_session_with_containers, mock_external_service_dependencies, tenant.id, account.id
         )
-        # Use a valid base64 encoded string to avoid decryption errors
-        import base64
-
-        mcp_provider.server_url = base64.b64encode(b"encrypted_server_url").decode()
-        mcp_provider.authed = True  # Provider must be authenticated to list tools
+        mcp_provider.server_url = "encrypted_server_url"
+        mcp_provider.authed = False
         mcp_provider.tools = "[]"
 
         from extensions.ext_database import db
 
         db.session.commit()
 
-        # Mock the decryption process at the rsa level to avoid key file issues
-        with patch("libs.rsa.decrypt") as mock_decrypt:
-            mock_decrypt.return_value = "https://example.com/mcp"
+        # Mock the decrypted_server_url property to avoid encryption issues
+        with patch("models.tools.encrypter") as mock_encrypter:
+            mock_encrypter.decrypt_token.return_value = "https://example.com/mcp"
 
             # Mock MCPClient and its context manager
             mock_tools = [
@@ -815,16 +683,13 @@ class TestMCPToolManageService:
                 )(),
             ]
 
-            with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+            with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
                 # Setup mock client
                 mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
                 mock_client_instance.list_tools.return_value = mock_tools
 
                 # Act: Execute the method under test
-                from extensions.ext_database import db
-
-                service = MCPToolManageService(db.session())
-                result = service.list_provider_tools(tenant_id=tenant.id, provider_id=mcp_provider.id)
+                result = MCPToolManageService.list_mcp_tool_from_remote_server(tenant.id, mcp_provider.id)
 
         # Assert: Verify the expected outcomes
         assert result is not None
@@ -840,8 +705,16 @@ class TestMCPToolManageService:
         assert mcp_provider.updated_at is not None
 
         # Verify mock interactions
-        # MCPClientWithAuthRetry is called with different parameters
-        mock_mcp_client.assert_called_once()
+        mock_mcp_client.assert_called_once_with(
+            "https://example.com/mcp",
+            mcp_provider.id,
+            tenant.id,
+            authed=False,
+            for_list=True,
+            headers={},
+            timeout=30.0,
+            sse_read_timeout=300.0,
+        )
 
     def test_list_mcp_tool_from_remote_server_auth_error(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -864,10 +737,7 @@ class TestMCPToolManageService:
         mcp_provider = self._create_test_mcp_provider(
             db_session_with_containers, mock_external_service_dependencies, tenant.id, account.id
         )
-        # Use a valid base64 encoded string to avoid decryption errors
-        import base64
-
-        mcp_provider.server_url = base64.b64encode(b"encrypted_server_url").decode()
+        mcp_provider.server_url = "encrypted_server_url"
         mcp_provider.authed = False
         mcp_provider.tools = "[]"
 
@@ -875,23 +745,20 @@ class TestMCPToolManageService:
 
         db.session.commit()
 
-        # Mock the decryption process at the rsa level to avoid key file issues
-        with patch("libs.rsa.decrypt") as mock_decrypt:
-            mock_decrypt.return_value = "https://example.com/mcp"
+        # Mock the decrypted_server_url property to avoid encryption issues
+        with patch("models.tools.encrypter") as mock_encrypter:
+            mock_encrypter.decrypt_token.return_value = "https://example.com/mcp"
 
             # Mock MCPClient to raise authentication error
-            with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+            with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
                 from core.mcp.error import MCPAuthError
 
                 mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
                 mock_client_instance.list_tools.side_effect = MCPAuthError("Authentication required")
 
                 # Act & Assert: Verify proper error handling
-                from extensions.ext_database import db
-
-                service = MCPToolManageService(db.session())
                 with pytest.raises(ValueError, match="Please auth the tool first"):
-                    service.list_provider_tools(tenant_id=tenant.id, provider_id=mcp_provider.id)
+                    MCPToolManageService.list_mcp_tool_from_remote_server(tenant.id, mcp_provider.id)
 
         # Verify database state was not changed
         db.session.refresh(mcp_provider)
@@ -919,38 +786,32 @@ class TestMCPToolManageService:
         mcp_provider = self._create_test_mcp_provider(
             db_session_with_containers, mock_external_service_dependencies, tenant.id, account.id
         )
-        # Use a valid base64 encoded string to avoid decryption errors
-        import base64
-
-        mcp_provider.server_url = base64.b64encode(b"encrypted_server_url").decode()
-        mcp_provider.authed = True  # Provider must be authenticated to test connection errors
+        mcp_provider.server_url = "encrypted_server_url"
+        mcp_provider.authed = False
         mcp_provider.tools = "[]"
 
         from extensions.ext_database import db
 
         db.session.commit()
 
-        # Mock the decryption process at the rsa level to avoid key file issues
-        with patch("libs.rsa.decrypt") as mock_decrypt:
-            mock_decrypt.return_value = "https://example.com/mcp"
+        # Mock the decrypted_server_url property to avoid encryption issues
+        with patch("models.tools.encrypter") as mock_encrypter:
+            mock_encrypter.decrypt_token.return_value = "https://example.com/mcp"
 
             # Mock MCPClient to raise connection error
-            with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+            with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
                 from core.mcp.error import MCPError
 
                 mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
                 mock_client_instance.list_tools.side_effect = MCPError("Connection failed")
 
                 # Act & Assert: Verify proper error handling
-                from extensions.ext_database import db
-
-                service = MCPToolManageService(db.session())
                 with pytest.raises(ValueError, match="Failed to connect to MCP server: Connection failed"):
-                    service.list_provider_tools(tenant_id=tenant.id, provider_id=mcp_provider.id)
+                    MCPToolManageService.list_mcp_tool_from_remote_server(tenant.id, mcp_provider.id)
 
         # Verify database state was not changed
         db.session.refresh(mcp_provider)
-        assert mcp_provider.authed is True  # Provider remains authenticated
+        assert mcp_provider.authed is False
         assert mcp_provider.tools == "[]"
 
     def test_delete_mcp_tool_success(self, db_session_with_containers, mock_external_service_dependencies):
@@ -979,8 +840,7 @@ class TestMCPToolManageService:
         assert db.session.query(MCPToolProvider).filter_by(id=mcp_provider.id).first() is not None
 
         # Act: Execute the method under test
-        service = MCPToolManageService(db.session())
-        service.delete_provider(tenant_id=tenant.id, provider_id=mcp_provider.id)
+        MCPToolManageService.delete_mcp_tool(tenant.id, mcp_provider.id)
 
         # Assert: Verify the expected outcomes
         # Provider should be deleted from database
@@ -1002,14 +862,11 @@ class TestMCPToolManageService:
             db_session_with_containers, mock_external_service_dependencies
         )
 
-        non_existent_id = str(fake.uuid4())
+        non_existent_id = fake.uuid4()
 
         # Act & Assert: Verify proper error handling
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.delete_provider(tenant_id=tenant.id, provider_id=non_existent_id)
+            MCPToolManageService.delete_mcp_tool(tenant.id, non_existent_id)
 
     def test_delete_mcp_tool_tenant_isolation(self, db_session_with_containers, mock_external_service_dependencies):
         """
@@ -1036,11 +893,8 @@ class TestMCPToolManageService:
         )
 
         # Act & Assert: Verify tenant isolation
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool not found"):
-            service.delete_provider(tenant_id=tenant2.id, provider_id=mcp_provider1.id)
+            MCPToolManageService.delete_mcp_tool(tenant2.id, mcp_provider1.id)
 
         # Verify provider still exists in tenant1
         from extensions.ext_database import db
@@ -1075,10 +929,7 @@ class TestMCPToolManageService:
         db.session.commit()
 
         # Act: Execute the method under test
-        from core.entities.mcp_provider import MCPConfiguration
-
-        service = MCPToolManageService(db.session())
-        service.update_provider(
+        MCPToolManageService.update_mcp_provider(
             tenant_id=tenant.id,
             provider_id=mcp_provider.id,
             name="Updated MCP Provider",
@@ -1087,10 +938,8 @@ class TestMCPToolManageService:
             icon_type="emoji",
             icon_background="#4ECDC4",
             server_identifier="updated_identifier_123",
-            configuration=MCPConfiguration(
-                timeout=45.0,
-                sse_read_timeout=400.0,
-            ),
+            timeout=45.0,
+            sse_read_timeout=400.0,
         )
 
         # Assert: Verify the expected outcomes
@@ -1104,9 +953,69 @@ class TestMCPToolManageService:
         # Verify icon was updated
         import json
 
-        icon_data = json.loads(mcp_provider.icon or "{}")
+        icon_data = json.loads(mcp_provider.icon)
         assert icon_data["content"] == "🚀"
         assert icon_data["background"] == "#4ECDC4"
+
+    def test_update_mcp_provider_with_server_url_change(
+        self, db_session_with_containers, mock_external_service_dependencies
+    ):
+        """
+        Test successful update of MCP provider with server URL change.
+
+        This test verifies:
+        - Proper handling of server URL changes
+        - Correct reconnection logic
+        - Database state updates
+        - External service integration
+        """
+        # Arrange: Create test data
+        fake = Faker()
+        account, tenant = self._create_test_account_and_tenant(
+            db_session_with_containers, mock_external_service_dependencies
+        )
+
+        # Create MCP provider
+        mcp_provider = self._create_test_mcp_provider(
+            db_session_with_containers, mock_external_service_dependencies, tenant.id, account.id
+        )
+
+        from extensions.ext_database import db
+
+        db.session.commit()
+
+        # Mock the reconnection method
+        with patch.object(MCPToolManageService, "_re_connect_mcp_provider") as mock_reconnect:
+            mock_reconnect.return_value = {
+                "authed": True,
+                "tools": '[{"name": "test_tool"}]',
+                "encrypted_credentials": "{}",
+            }
+
+            # Act: Execute the method under test
+            MCPToolManageService.update_mcp_provider(
+                tenant_id=tenant.id,
+                provider_id=mcp_provider.id,
+                name="Updated MCP Provider",
+                server_url="https://new-example.com/mcp",
+                icon="🚀",
+                icon_type="emoji",
+                icon_background="#4ECDC4",
+                server_identifier="updated_identifier_123",
+                timeout=45.0,
+                sse_read_timeout=400.0,
+            )
+
+        # Assert: Verify the expected outcomes
+        db.session.refresh(mcp_provider)
+        assert mcp_provider.name == "Updated MCP Provider"
+        assert mcp_provider.server_identifier == "updated_identifier_123"
+        assert mcp_provider.timeout == 45.0
+        assert mcp_provider.sse_read_timeout == 400.0
+        assert mcp_provider.updated_at is not None
+
+        # Verify reconnection was called
+        mock_reconnect.assert_called_once_with("https://new-example.com/mcp", mcp_provider.id, tenant.id)
 
     def test_update_mcp_provider_duplicate_name(self, db_session_with_containers, mock_external_service_dependencies):
         """
@@ -1139,12 +1048,8 @@ class TestMCPToolManageService:
         db.session.commit()
 
         # Act & Assert: Verify proper error handling for duplicate name
-        from core.entities.mcp_provider import MCPConfiguration
-        from extensions.ext_database import db
-
-        service = MCPToolManageService(db.session())
         with pytest.raises(ValueError, match="MCP tool First Provider already exists"):
-            service.update_provider(
+            MCPToolManageService.update_mcp_provider(
                 tenant_id=tenant.id,
                 provider_id=provider2.id,
                 name="First Provider",  # Duplicate name
@@ -1153,10 +1058,8 @@ class TestMCPToolManageService:
                 icon_type="emoji",
                 icon_background="#4ECDC4",
                 server_identifier="unique_identifier",
-                configuration=MCPConfiguration(
-                    timeout=45.0,
-                    sse_read_timeout=400.0,
-                ),
+                timeout=45.0,
+                sse_read_timeout=400.0,
             )
 
     def test_update_mcp_provider_credentials_success(
@@ -1191,25 +1094,19 @@ class TestMCPToolManageService:
 
         # Mock the provider controller and encryption
         with (
-            patch("core.tools.mcp_tool.provider.MCPToolProviderController") as mock_controller,
-            patch("core.tools.utils.encryption.ProviderConfigEncrypter") as mock_encrypter,
+            patch("services.tools.mcp_tools_manage_service.MCPToolProviderController") as mock_controller,
+            patch("services.tools.mcp_tools_manage_service.ProviderConfigEncrypter") as mock_encrypter,
         ):
             # Setup mocks
-            mock_controller_instance = mock_controller.from_db.return_value
+            mock_controller_instance = mock_controller._from_db.return_value
             mock_controller_instance.get_credentials_schema.return_value = []
 
             mock_encrypter_instance = mock_encrypter.return_value
             mock_encrypter_instance.encrypt.return_value = {"new_key": "encrypted_value"}
 
             # Act: Execute the method under test
-            from extensions.ext_database import db
-
-            service = MCPToolManageService(db.session())
-            service.update_provider_credentials(
-                provider_id=mcp_provider.id,
-                tenant_id=tenant.id,
-                credentials={"new_key": "new_value"},
-                authed=True,
+            MCPToolManageService.update_mcp_provider_credentials(
+                mcp_provider=mcp_provider, credentials={"new_key": "new_value"}, authed=True
             )
 
         # Assert: Verify the expected outcomes
@@ -1220,7 +1117,7 @@ class TestMCPToolManageService:
         # Verify credentials were encrypted and merged
         import json
 
-        credentials = json.loads(mcp_provider.encrypted_credentials or "{}")
+        credentials = json.loads(mcp_provider.encrypted_credentials)
         assert "existing_key" in credentials
         assert "new_key" in credentials
 
@@ -1255,25 +1152,19 @@ class TestMCPToolManageService:
 
         # Mock the provider controller and encryption
         with (
-            patch("core.tools.mcp_tool.provider.MCPToolProviderController") as mock_controller,
-            patch("core.tools.utils.encryption.ProviderConfigEncrypter") as mock_encrypter,
+            patch("services.tools.mcp_tools_manage_service.MCPToolProviderController") as mock_controller,
+            patch("services.tools.mcp_tools_manage_service.ProviderConfigEncrypter") as mock_encrypter,
         ):
             # Setup mocks
-            mock_controller_instance = mock_controller.from_db.return_value
+            mock_controller_instance = mock_controller._from_db.return_value
             mock_controller_instance.get_credentials_schema.return_value = []
 
             mock_encrypter_instance = mock_encrypter.return_value
             mock_encrypter_instance.encrypt.return_value = {"new_key": "encrypted_value"}
 
             # Act: Execute the method under test
-            from extensions.ext_database import db
-
-            service = MCPToolManageService(db.session())
-            service.update_provider_credentials(
-                provider_id=mcp_provider.id,
-                tenant_id=tenant.id,
-                credentials={"new_key": "new_value"},
-                authed=False,
+            MCPToolManageService.update_mcp_provider_credentials(
+                mcp_provider=mcp_provider, credentials={"new_key": "new_value"}, authed=False
             )
 
         # Assert: Verify the expected outcomes
@@ -1308,37 +1199,41 @@ class TestMCPToolManageService:
             type("MockTool", (), {"model_dump": lambda self: {"name": "test_tool_2", "description": "Test tool 2"}})(),
         ]
 
-        with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+        with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
             # Setup mock client
             mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
             mock_client_instance.list_tools.return_value = mock_tools
 
             # Act: Execute the method under test
-            from extensions.ext_database import db
-
-            service = MCPToolManageService(db.session())
-            result = service._reconnect_provider(
-                server_url="https://example.com/mcp",
-                provider=mcp_provider,
+            result = MCPToolManageService._re_connect_mcp_provider(
+                "https://example.com/mcp", mcp_provider.id, tenant.id
             )
 
         # Assert: Verify the expected outcomes
         assert result is not None
-        assert result.authed is True
-        assert result.tools is not None
-        assert result.encrypted_credentials == "{}"
+        assert result["authed"] is True
+        assert result["tools"] is not None
+        assert result["encrypted_credentials"] == "{}"
 
         # Verify tools were properly serialized
         import json
 
-        tools_data = json.loads(result.tools)
+        tools_data = json.loads(result["tools"])
         assert len(tools_data) == 2
         assert tools_data[0]["name"] == "test_tool_1"
         assert tools_data[1]["name"] == "test_tool_2"
 
         # Verify mock interactions
-        provider_entity = mcp_provider.to_entity()
-        mock_mcp_client.assert_called_once()
+        mock_mcp_client.assert_called_once_with(
+            "https://example.com/mcp",
+            mcp_provider.id,
+            tenant.id,
+            authed=False,
+            for_list=True,
+            headers={},
+            timeout=30.0,
+            sse_read_timeout=300.0,
+        )
 
     def test_re_connect_mcp_provider_auth_error(self, db_session_with_containers, mock_external_service_dependencies):
         """
@@ -1361,26 +1256,22 @@ class TestMCPToolManageService:
         )
 
         # Mock MCPClient to raise authentication error
-        with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+        with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
             from core.mcp.error import MCPAuthError
 
             mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
             mock_client_instance.list_tools.side_effect = MCPAuthError("Authentication required")
 
             # Act: Execute the method under test
-            from extensions.ext_database import db
-
-            service = MCPToolManageService(db.session())
-            result = service._reconnect_provider(
-                server_url="https://example.com/mcp",
-                provider=mcp_provider,
+            result = MCPToolManageService._re_connect_mcp_provider(
+                "https://example.com/mcp", mcp_provider.id, tenant.id
             )
 
         # Assert: Verify the expected outcomes
         assert result is not None
-        assert result.authed is False
-        assert result.tools == "[]"
-        assert result.encrypted_credentials == "{}"
+        assert result["authed"] is False
+        assert result["tools"] == "[]"
+        assert result["encrypted_credentials"] == "{}"
 
     def test_re_connect_mcp_provider_connection_error(
         self, db_session_with_containers, mock_external_service_dependencies
@@ -1404,18 +1295,12 @@ class TestMCPToolManageService:
         )
 
         # Mock MCPClient to raise connection error
-        with patch("services.tools.mcp_tools_manage_service.MCPClientWithAuthRetry") as mock_mcp_client:
+        with patch("services.tools.mcp_tools_manage_service.MCPClient") as mock_mcp_client:
             from core.mcp.error import MCPError
 
             mock_client_instance = mock_mcp_client.return_value.__enter__.return_value
             mock_client_instance.list_tools.side_effect = MCPError("Connection failed")
 
             # Act & Assert: Verify proper error handling
-            from extensions.ext_database import db
-
-            service = MCPToolManageService(db.session())
             with pytest.raises(ValueError, match="Failed to re-connect MCP server: Connection failed"):
-                service._reconnect_provider(
-                    server_url="https://example.com/mcp",
-                    provider=mcp_provider,
-                )
+                MCPToolManageService._re_connect_mcp_provider("https://example.com/mcp", mcp_provider.id, tenant.id)

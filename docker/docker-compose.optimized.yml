@@ -1,0 +1,30 @@
+# docker-compose.optimized.yml
+# 使用优化构建的docker-compose配置
+
+version: '3.8'
+
+services:
+  # 依赖镜像构建服务
+  web-deps:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.deps
+      target: web-deps-base
+    image: dify-web-deps:latest
+    # 这个服务只用于构建依赖镜像，不运行
+
+  # 优化的Web服务
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web.deps
+      target: web-builder
+    image: dify-web:latest
+    depends_on:
+      - web-deps
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    # 使用预构建的依赖镜像
+    # 在实际使用中，你需要先构建web-deps服务

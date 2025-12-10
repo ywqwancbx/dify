@@ -8,7 +8,7 @@ const translation = {
   },
   contribute: {
     line1: '我有興趣為 ',
-    line2: 'Dify 貢獻工具。',
+    line2: '平台貢獻工具。',
     viewGuide: '檢視指南',
   },
   author: '作者',
@@ -165,7 +165,7 @@ const translation = {
       title: '沒有可用的代理策略',
     },
   },
-  customToolTip: '瞭解有關 Dify 自訂工具的更多資訊',
+  customToolTip: '瞭解有關自訂工具的更多資訊',
   toolNameUsageTip: '用於代理推理和提示的工具調用名稱',
   openInStudio: '在 Studio 中打開',
   noTools: '未找到工具',

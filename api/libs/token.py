@@ -197,34 +197,47 @@ def check_csrf_token(request: Request, user_id: str):
     def _unauthorized():
         raise Unauthorized("CSRF token is missing or invalid.")
 
+    
+    
     for pattern in CSRF_WHITE_LIST:
         if pattern.match(request.path):
+            
             return
 
     csrf_token = extract_csrf_token(request)
     csrf_token_from_cookie = extract_csrf_token_from_cookie(request)
+    
+    
 
     if csrf_token != csrf_token_from_cookie:
+        
         _unauthorized()
 
     if not csrf_token:
+        
         _unauthorized()
     verified = {}
     try:
         verified = PassportService().verify(csrf_token)
-    except:
+        
+    except Exception as e:
         _unauthorized()
 
     if verified.get("sub") != user_id:
+        
         _unauthorized()
 
     exp: int | None = verified.get("exp")
     if not exp:
+        # debug logs removed
         _unauthorized()
     else:
         time_now = int(datetime.now().timestamp())
         if exp < time_now:
+            
             _unauthorized()
+    
+    
 
 
 def generate_csrf_token(user_id: str) -> str:

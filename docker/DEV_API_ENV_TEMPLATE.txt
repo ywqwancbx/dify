@@ -1,0 +1,32 @@
+# Dev 环境 API 配置模板
+# 复制这些配置到 api/.env 文件中
+
+# Database - 连接到 dev 环境的 PostgreSQL (端口 5433)
+DB_HOST=localhost
+DB_PORT=5433
+DB_USERNAME=postgres
+DB_PASSWORD=difyai123456
+DB_DATABASE=dify
+
+# Redis - 连接到 dev 环境的 Redis (端口 6380)
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=difyai123456
+REDIS_DB=0
+
+# Weaviate - 连接到 dev 环境的 Weaviate (端口 8081)
+VECTOR_STORE=weaviate
+WEAVIATE_ENDPOINT=http://localhost:8081
+WEAVIATE_API_KEY=WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
+
+# Sandbox - 连接到 dev 环境的 Sandbox (端口 8195)
+CODE_EXECUTION_ENDPOINT=http://localhost:8195
+CODE_EXECUTION_API_KEY=dify-sandbox
+
+# Plugin Daemon - 连接到 dev 环境的 Plugin Daemon (端口 5004)
+PLUGIN_DAEMON_URL=http://localhost:5004
+PLUGIN_DAEMON_KEY=lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
+
+# SSRF Proxy - 连接到 dev 环境的 SSRF Proxy (端口 3129)
+SSRF_PROXY_HTTP_URL=http://localhost:3129
+SSRF_PROXY_HTTPS_URL=http://localhost:3129

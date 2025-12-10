@@ -30,8 +30,8 @@
     flex-direction: column;
     justify-content: space-between;
     top: unset;
-    right: var(--${buttonId}-right, 1rem); /* Align with dify-chatbot-bubble-button. */
-    bottom: var(--${buttonId}-bottom, 1rem); /* Align with dify-chatbot-bubble-button. */
+    right: var(--${buttonId}-right, 1rem); /* Align with chatbot bubble button. */
+    bottom: var(--${buttonId}-bottom, 1rem); /* Align with chatbot bubble button. */
     left: unset;
     width: 24rem;
     max-width: calc(100vw - 2rem);
@@ -53,8 +53,8 @@
     flex-direction: column;
     justify-content: space-between;
     top: unset;
-    right: var(--${buttonId}-right, 1rem); /* Align with dify-chatbot-bubble-button. */
-    bottom: var(--${buttonId}-bottom, 1rem); /* Align with dify-chatbot-bubble-button. */
+    right: var(--${buttonId}-right, 1rem); /* Align with chatbot bubble button. */
+    bottom: var(--${buttonId}-bottom, 1rem); /* Align with chatbot bubble button. */
     left: unset;
     min-width: 24rem;
     width: 48%;
@@ -152,7 +152,7 @@
     function createIframe() {
       const iframe = document.createElement("iframe");
       iframe.allow = "fullscreen;microphone";
-      iframe.title = "dify chatbot bubble window";
+      iframe.title = "chatbot bubble window";
       iframe.id = iframeId;
       iframe.src = iframeUrl;
       iframe.style.cssText = originalIframeStyleText;

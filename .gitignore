@@ -190,11 +190,20 @@ docker/volumes/mysql/*
 docker/volumes/seekdb/*
 !docker/volumes/oceanbase/init.d
 
+# Dev environment volumes
+docker/volumes-dev/*
+
 docker/nginx/conf.d/default.conf
 docker/nginx/ssl/*
 !docker/nginx/ssl/.gitkeep
 docker/middleware.env
 docker/docker-compose.override.yaml
+# Volume backups - match patterns like volumes_bak20251118 or volumes_bak_20251118
+docker/volumes_bak*/
+docker/volumes_bak*/*
+# Legacy typo (keep for backward compatibility)
+docker/volumns_bak*/
+docker/volumns_bak*/*
 
 sdks/python-client/build
 sdks/python-client/dist
@@ -244,3 +253,5 @@ scripts/stress-test/reports/
 
 # settings
 *.local.json
+docker/volumesbak.zip
+docker/volumes.zip

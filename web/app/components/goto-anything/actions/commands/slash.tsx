@@ -9,7 +9,6 @@ import { themeCommand } from './theme'
 import { languageCommand } from './language'
 import { forumCommand } from './forum'
 import { docsCommand } from './docs'
-import { communityCommand } from './community'
 import { accountCommand } from './account'
 import { zenCommand } from './zen'
 import i18n from '@/i18n-config/i18next-config'
@@ -37,7 +36,6 @@ export const registerSlashCommands = (deps: Record<string, any>) => {
   slashCommandRegistry.register(languageCommand, { setLocale: deps.setLocale })
   slashCommandRegistry.register(forumCommand, {})
   slashCommandRegistry.register(docsCommand, {})
-  slashCommandRegistry.register(communityCommand, {})
   slashCommandRegistry.register(accountCommand, {})
   slashCommandRegistry.register(zenCommand, {})
 }
@@ -48,7 +46,6 @@ export const unregisterSlashCommands = () => {
   slashCommandRegistry.unregister('language')
   slashCommandRegistry.unregister('forum')
   slashCommandRegistry.unregister('docs')
-  slashCommandRegistry.unregister('community')
   slashCommandRegistry.unregister('account')
   slashCommandRegistry.unregister('zen')
 }

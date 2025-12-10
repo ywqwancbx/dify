@@ -1,0 +1,56 @@
+# 方案1: 预构建依赖镜像
+# 这个Dockerfile可以单独构建并推送到registry，作为基础镜像使用
+
+FROM node:22.11.0-alpine AS web-deps-base
+
+WORKDIR /app/web
+
+# 安装pnpm
+RUN npm install -g pnpm@10.19.0
+
+# 复制package.json和pnpm-lock.yaml
+COPY ./web/package.json ./web/pnpm-lock.yaml ./
+
+# 安装所有依赖（包括devDependencies）
+RUN pnpm install --frozen-lockfile
+
+# 方案2: 使用预构建的依赖镜像
+# 假设你已经构建并推送了依赖镜像到 registry
+# FROM your-registry/dify-web-deps:latest AS web-deps
+
+# 构建阶段
+FROM web-deps-base AS web-builder
+
+# 复制源代码
+COPY ./web .
+
+# 构建应用 - 增加内存限制
+RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm build
+
+# 生产环境镜像
+FROM node:22.11.0-alpine AS web-prod
+
+WORKDIR /app/web
+
+# 安装pnpm
+RUN npm install -g pnpm@10.19.0
+
+# 复制package.json和pnpm-lock.yaml
+COPY ./web/package.json ./web/pnpm-lock.yaml ./
+
+# 安装生产依赖 - 跳过husky
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+# 从构建阶段复制编译后的文件
+COPY --from=web-builder /app/web/.next ./.next
+COPY --from=web-builder /app/web/public ./public
+COPY --from=web-builder /app/web/next.config.js ./
+COPY --from=web-builder /app/web/scripts ./scripts
+
+# 设置权限
+RUN chmod +x ./scripts/copy-and-start.mjs
+
+# 暴露端口
+EXPOSE 3000
+
+CMD ["pnpm", "start"]

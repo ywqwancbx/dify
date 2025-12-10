@@ -3,8 +3,8 @@ import logging
 from collections.abc import Mapping
 from typing import Any, Union
 
-from pydantic import ValidationError
 from yarl import URL
+from pydantic import ValidationError
 
 from configs import dify_config
 from core.helper.provider_cache import ToolProviderCredentialsCache
@@ -264,22 +264,19 @@ class ToolTransformService:
 
     @staticmethod
     def mcp_tool_to_user_tool(
-        mcp_provider: MCPToolProvider, tools: list[MCPTool], user_name: str | None = None
+        mcp_provider: MCPToolProvider,
+        tools: list[MCPTool],
+        user_name: str | None = None,
     ) -> list[ToolApiEntity]:
-        # Use provided user_name to avoid N+1 query, fallback to load_user() if not provided
-        if user_name is None:
-            user = mcp_provider.load_user()
-            user_name = user.name if user else "Anonymous"
-
+        user = mcp_provider.load_user() if user_name is None else None
         return [
             ToolApiEntity(
-                author=user_name or "Anonymous",
+                author=(user_name if user_name is not None else (user.name if user else "Anonymous")),
                 name=tool.name,
                 label=I18nObject(en_US=tool.name, zh_Hans=tool.name),
                 description=I18nObject(en_US=tool.description or "", zh_Hans=tool.description or ""),
                 parameters=ToolTransformService.convert_mcp_schema_to_parameter(tool.inputSchema),
                 labels=[],
-                output_schema=tool.outputSchema or {},
             )
             for tool in tools
         ]
@@ -427,7 +424,7 @@ class ToolTransformService:
         )
 
     @staticmethod
-    def convert_mcp_schema_to_parameter(schema: dict[str, Any]) -> list["ToolParameter"]:
+    def convert_mcp_schema_to_parameter(schema: dict) -> list["ToolParameter"]:
         """
         Convert MCP JSON schema to tool parameters
 
@@ -436,7 +433,7 @@ class ToolTransformService:
         """
 
         def create_parameter(
-            name: str, description: str, param_type: str, required: bool, input_schema: dict[str, Any] | None = None
+            name: str, description: str, param_type: str, required: bool, input_schema: dict | None = None
         ) -> ToolParameter:
             """Create a ToolParameter instance with given attributes"""
             input_schema_dict: dict[str, Any] = {"input_schema": input_schema} if input_schema else {}
@@ -451,9 +448,7 @@ class ToolTransformService:
                 **input_schema_dict,
             )
 
-        def process_properties(
-            props: dict[str, dict[str, Any]], required: list[str], prefix: str = ""
-        ) -> list[ToolParameter]:
+        def process_properties(props: dict, required: list, prefix: str = "") -> list[ToolParameter]:
             """Process properties recursively"""
             TYPE_MAPPING = {"integer": "number", "float": "number"}
             COMPLEX_TYPES = ["array", "object"]

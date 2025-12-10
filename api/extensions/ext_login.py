@@ -50,13 +50,22 @@ def load_user_from_request(request_from_flask_login):
 
     if request.blueprint in {"console", "inner_api"}:
         if not auth_token:
+            print(f"DEBUG: Console API auth - No auth_token found")
             raise Unauthorized("Invalid Authorization token.")
-        decoded = PassportService().verify(auth_token)
+        
+        try:
+            decoded = PassportService().verify(auth_token)
+        except Exception as e:
+            raise Unauthorized("Invalid Authorization token.")
+        
         user_id = decoded.get("user_id")
         source = decoded.get("token_source")
+        
         if source:
+            print(f"DEBUG: Console API auth - Token has source, rejecting")
             raise Unauthorized("Invalid Authorization token.")
         if not user_id:
+            print(f"DEBUG: Console API auth - No user_id in token")
             raise Unauthorized("Invalid Authorization token.")
 
         logged_in_account = AccountService.load_logged_in_account(account_id=user_id)
@@ -109,8 +118,16 @@ def on_user_logged_in(_sender, user):
     Note: AccountService.load_logged_in_account will populate user.current_tenant_id
     through the load_user method, which calls account.set_tenant_id().
     """
-    # tenant_id context variable removed - using current_user.current_tenant_id directly
-    pass
+    if user and isinstance(user, Account):
+        # Ensure the current tenant is set for the loaded account
+        if not getattr(user, "current_tenant_id", None):
+            current_join = db.session.query(TenantAccountJoin).filter_by(account_id=user.id, current=True).first()
+            if current_join:
+                user.set_tenant_id(current_join.tenant_id)
+            else:
+                any_join = db.session.query(TenantAccountJoin).filter_by(account_id=user.id).first()
+                if any_join:
+                    user.set_tenant_id(any_join.tenant_id)
 
 
 @login_manager.unauthorized_handler

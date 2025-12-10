@@ -32,8 +32,8 @@ const translation = {
     '删除应用将无法撤销。用户将不能访问你的应用，所有 Prompt 编排配置和日志均将一并被删除。',
   appDeleted: '应用已删除',
   appDeleteFailed: '应用删除失败',
-  join: '参与社区',
-  communityIntro: '与团队成员、贡献者和开发者在不同频道中交流',
+  join: '',
+  communityIntro: '',
   roadmap: '产品路线图',
   newApp: {
     learnMore: '了解更多',
@@ -198,7 +198,7 @@ const translation = {
     },
     aliyun: {
       title: '云监控',
-      description: '阿里云提供的全托管免运维可观测平台，一键开启Dify应用的监控追踪和评估',
+      description: '阿里云提供的全托管免运维可观测平台，一键开启应用的监控追踪和评估',
     },
     mlflow: {
       title: 'MLflow',
@@ -321,7 +321,7 @@ const translation = {
       languageChangeDesc: '更改界面语言',
       slashDesc: '执行命令（输入 / 查看所有可用命令）',
       accountDesc: '导航到账户页面',
-      communityDesc: '打开 Discord 社区',
+      communityDesc: '',
       docDesc: '打开帮助文档',
       feedbackDesc: '打开社区反馈讨论',
       zenTitle: '专注模式',

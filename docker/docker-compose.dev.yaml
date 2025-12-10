@@ -1,0 +1,205 @@
+# Dev 环境 Docker Compose 配置
+# API 和 Web 使用本地代码构建，连接到 dev 中间件服务
+#
+# 使用方式（推荐使用项目名避免与生产环境冲突）:
+#   docker-compose -p dify-dev -f docker-compose.dev.yaml up -d
+# 或者使用环境变量:
+#   export COMPOSE_PROJECT_NAME=dify-dev
+#   docker-compose -f docker-compose.dev.yaml up -d
+
+x-shared-dev-env: &shared-dev-api-env
+  # Database - 连接到 dev 环境的 PostgreSQL
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_USERNAME: postgres
+  DB_PASSWORD: difyai123456
+  DB_DATABASE: dify
+  
+  # Redis - 连接到 dev 环境的 Redis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: difyai123456
+  REDIS_DB: 0
+  
+  # Weaviate - 连接到 dev 环境的 Weaviate
+  VECTOR_STORE: weaviate
+  WEAVIATE_ENDPOINT: http://weaviate:8080
+  WEAVIATE_API_KEY: WVF5YThaHlkYwhGUSmCRgsX3tD5ngdN8pkih
+  
+  # Sandbox - 连接到 dev 环境的 Sandbox
+  CODE_EXECUTION_ENDPOINT: http://sandbox:8194
+  CODE_EXECUTION_API_KEY: dify-sandbox
+  
+  # Plugin Daemon - 连接到 dev 环境的 Plugin Daemon
+  PLUGIN_DAEMON_URL: http://plugin_daemon:5002
+  PLUGIN_DAEMON_KEY: lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi
+  
+  # SSRF Proxy
+  SSRF_PROXY_HTTP_URL: http://ssrf_proxy:3128
+  SSRF_PROXY_HTTPS_URL: http://ssrf_proxy:3128
+  
+  # Storage settings
+  STORAGE_TYPE: opendal
+  OPENDAL_SCHEME: fs
+  OPENDAL_FS_ROOT: storage
+  
+  # Celery settings
+  CELERY_BROKER_URL: redis://:difyai123456@redis:6379/1
+  CELERY_BACKEND: redis
+  
+  # Common settings
+  LOG_LEVEL: INFO
+  DEBUG: "true"
+  FLASK_DEBUG: "true"
+  DEPLOY_ENV: DEVELOPMENT
+
+services:
+  # API service - 使用本地代码构建，连接到 dev 中间件
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      <<: *shared-dev-api-env
+      MODE: api
+      DIFY_BIND_ADDRESS: 0.0.0.0
+      DIFY_PORT: 5001
+      # 连接到 dev 中间件服务（通过服务名，需要在同一网络）
+      DB_HOST: db
+      REDIS_HOST: redis
+      WEAVIATE_ENDPOINT: http://weaviate:8080
+      CODE_EXECUTION_ENDPOINT: http://sandbox:8194
+      PLUGIN_DAEMON_URL: http://plugin_daemon:5002
+      SSRF_PROXY_HTTP_URL: http://ssrf_proxy:3128
+      SSRF_PROXY_HTTPS_URL: http://ssrf_proxy:3128
+    ports:
+      - "5001:5001"
+    volumes:
+      # Storage directory
+      - ./volumes-dev/app/storage:/app/api/storage
+      # Note: 代码挂载会覆盖容器内的环境，暂时注释掉
+      # 如果需要热重载，需要确保本地环境与容器环境一致
+      # - ../api:/app/api
+    networks:
+      - dev_default
+      - dev_ssrf_proxy_network
+
+  # Worker service - 使用本地代码构建
+  worker:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      <<: *shared-dev-api-env
+      MODE: worker
+      DB_HOST: db
+      REDIS_HOST: redis
+      WEAVIATE_ENDPOINT: http://weaviate:8080
+      CODE_EXECUTION_ENDPOINT: http://sandbox:8194
+      PLUGIN_DAEMON_URL: http://plugin_daemon:5002
+      SSRF_PROXY_HTTP_URL: http://ssrf_proxy:3128
+      SSRF_PROXY_HTTPS_URL: http://ssrf_proxy:3128
+    volumes:
+      # Storage directory
+      - ./volumes-dev/app/storage:/app/api/storage
+      # Note: 代码挂载会覆盖容器内的环境，暂时注释掉
+      # - ../api:/app/api
+    networks:
+      - dev_default
+      - dev_ssrf_proxy_network
+
+  # Worker beat service - 使用本地代码构建
+  worker_beat:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      <<: *shared-dev-api-env
+      MODE: beat
+      # Celery broker configuration
+      CELERY_BROKER_URL: redis://:difyai123456@redis:6379/1
+      CELERY_BACKEND: redis
+      DB_HOST: db
+      REDIS_HOST: redis
+    networks:
+      - dev_default
+
+  # Web service - 使用本地代码构建
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    restart: always
+    environment:
+      DEPLOY_ENV: DEVELOPMENT
+      EDITION: SELF_HOSTED
+      # 服务器端API地址（容器内部使用）
+      CONSOLE_API_URL: http://api:5001
+      APP_API_URL: http://api:5001
+      # 客户端API地址 - 需要重新构建才能生效
+      # 由于NEXT_PUBLIC_*变量在构建时编译，需要重新构建web服务
+      # 暂时保持原配置，待清理磁盘空间后重新构建
+      NEXT_PUBLIC_DEPLOY_ENV: DEVELOPMENT
+      NEXT_PUBLIC_EDITION: SELF_HOSTED
+      NEXT_PUBLIC_API_PREFIX: /console/api
+      NEXT_PUBLIC_PUBLIC_API_PREFIX: /api
+      NEXT_PUBLIC_MARKETPLACE_API_PREFIX: /api
+    ports:
+      - "3001:3000"   # Dev环境使用3001端口，避免与生产环境3000端口冲突
+    depends_on:
+      - api
+    networks:
+      - dev_default
+
+  # Nginx reverse proxy for dev environment
+  nginx_dev:
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template
+      - ./nginx/proxy.conf.template:/etc/nginx/proxy.conf.template
+      - ./nginx/https.conf.template:/etc/nginx/https.conf.template
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint-mount.sh
+      - ./nginx/ssl:/etc/ssl # cert dir (legacy)
+    entrypoint:
+      [
+        "sh",
+        "-c",
+        "cp /docker-entrypoint-mount.sh /docker-entrypoint.sh && sed -i 's/\r$$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh && /docker-entrypoint.sh",
+      ]
+    environment:
+      NGINX_SERVER_NAME: _
+      NGINX_HTTPS_ENABLED: "false"
+      NGINX_SSL_PORT: 443
+      NGINX_PORT: 80
+      NGINX_SSL_CERT_FILENAME: dify.crt
+      NGINX_SSL_CERT_KEY_FILENAME: dify.key
+      NGINX_SSL_PROTOCOLS: TLSv1.1 TLSv1.2 TLSv1.3
+      NGINX_WORKER_PROCESSES: auto
+      NGINX_CLIENT_MAX_BODY_SIZE: 100M
+      NGINX_KEEPALIVE_TIMEOUT: 65
+      NGINX_PROXY_READ_TIMEOUT: 3600s
+      NGINX_PROXY_SEND_TIMEOUT: 3600s
+      NGINX_ENABLE_CERTBOT_CHALLENGE: "false"
+      CERTBOT_DOMAIN: ""
+    depends_on:
+      - api
+      - web
+    ports:
+      - "18080:80"   # Dev环境nginx HTTP端口
+      - "18443:443"  # Dev环境nginx HTTPS端口（如需要）
+    networks:
+      - dev_default
+
+networks:
+  dev_default:
+    external: true
+    name: dify-middlewares-dev_default
+  dev_ssrf_proxy_network:
+    external: true
+    name: dify-middlewares-dev_ssrf_proxy_network
+

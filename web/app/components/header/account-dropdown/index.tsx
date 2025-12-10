@@ -130,7 +130,7 @@ export default function AppSelector() {
                       </div>
                     </MenuItem>
                   </div>
-                  {!systemFeatures.branding.enabled && <>
+                  {/* {!systemFeatures.branding.enabled && <>
                     <div className='p-1'>
                       <MenuItem>
                         <Link
@@ -192,7 +192,7 @@ export default function AppSelector() {
                         )
                       }
                     </div>
-                  </>}
+                  </>} */}
                   <MenuItem disabled>
                     <div className='p-1'>
                       <div className={cn(itemClassName, 'hover:bg-transparent')}>
