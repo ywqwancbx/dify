@@ -396,13 +396,30 @@ class MCPToolManageService:
 
         # Encrypt new credentials
         provider_controller = MCPToolProviderController.from_db(provider)
-=======
+        tool_configuration = ProviderConfigEncrypter(
+            tenant_id=tenant_id,
+            config=list(provider_controller.get_credentials_schema()),
+            provider_config_cache=NoOpProviderCredentialCache(),
+        )
+        encrypted_credentials = tool_configuration.encrypt(credentials)
+
+        # Update provider
+        provider.updated_at = datetime.now()
+        provider.encrypted_credentials = json.dumps({**provider.credentials, **encrypted_credentials})
+
+        if authed is not None:
+            provider.authed = authed
+            if not authed:
+                provider.tools = EMPTY_TOOLS_JSON
+
+        # Flush changes to database
+        self._session.flush()
+
     @classmethod
     def update_mcp_provider_credentials(
         cls, mcp_provider: MCPToolProvider, credentials: dict[str, Any], authed: bool = False
     ):
         provider_controller = MCPToolProviderController.from_db(mcp_provider)
->>>>>>> eam-integration-passthrough
         tool_configuration = ProviderConfigEncrypter(
             tenant_id=mcp_provider.tenant_id,
             config=list(provider_controller.get_credentials_schema()),
@@ -415,19 +432,6 @@ class MCPToolManageService:
         if not authed:
             mcp_provider.tools = "[]"
         db.session.commit()
-
-<<<<<<< HEAD
-        # Update provider
-        provider.updated_at = datetime.now()
-        provider.encrypted_credentials = json.dumps({**provider.credentials, **encrypted_credentials})
-
-        if authed is not None:
-            provider.authed = authed
-            if not authed:
-                provider.tools = EMPTY_TOOLS_JSON
-
-        # Flush changes to database
-        self._session.flush()
 
     def save_oauth_data(
         self, provider_id: str, tenant_id: str, data: dict[str, Any], data_type: OAuthDataType = OAuthDataType.MIXED
@@ -587,7 +591,6 @@ class MCPToolManageService:
         headers = mcp_provider.decrypted_headers
         timeout = mcp_provider.timeout
         sse_read_timeout = mcp_provider.sse_read_timeout
->>>>>>> eam-integration-passthrough
 
         try:
             with MCPClient(

@@ -549,7 +549,11 @@ def auth(
         effective_scope = get_effective_scope(scope_from_www_auth, prm, metadata, credentials.get("scope"))
         
         # Handle client credentials flow if no authorization code and grant type is client_credentials
-        if authorization_code is None and state_param is None and effective_grant_type == MCPSupportGrantType.CLIENT_CREDENTIALS.value:
+        if (
+            authorization_code is None
+            and state_param is None
+            and effective_grant_type == MCPSupportGrantType.CLIENT_CREDENTIALS.value
+        ):
             try:
                 tokens = client_credentials_flow(
                     server_url,

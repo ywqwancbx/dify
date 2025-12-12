@@ -1,22 +1,19 @@
-import uuid
-from datetime import UTC, datetime, timedelta
-import json
 import os
+import uuid
 
 from flask import make_response, request
 from flask_restx import Resource
 from sqlalchemy import select
 from sqlalchemy import text as sa_text
-from werkzeug.exceptions import BadRequest, Unauthorized, InternalServerError, NotFound
+from werkzeug.exceptions import BadRequest, InternalServerError, Unauthorized
 
 from configs import dify_config
 from controllers.web import web_ns
 from core.helper import ssrf_proxy
 from extensions.ext_database import db
-from libs.passport import PassportService
 from libs.token import generate_csrf_token
-from models.model import Account
 from models import Tenant, TenantAccountJoin
+from models.model import Account
 from services.account_service import AccountService
 
 
@@ -85,7 +82,6 @@ class EAMSSOLoginResource(Resource):
         if not eam_verify_url:
             raise InternalServerError("EAM_VERIFY_URL is not configured.")
         
-        
         try:
             # 使用SSRF代理调用EAM Server验证接口
             response = ssrf_proxy.post(
@@ -94,7 +90,6 @@ class EAMSSOLoginResource(Resource):
                 headers={'Content-Type': 'application/json'},
                 timeout=10
             )
-            
             
             if response.status_code != 200:
                 raise Unauthorized(f"EAM token verification failed: {response.status_code}")

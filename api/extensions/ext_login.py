@@ -50,7 +50,6 @@ def load_user_from_request(request_from_flask_login):
 
     if request.blueprint in {"console", "inner_api"}:
         if not auth_token:
-            print(f"DEBUG: Console API auth - No auth_token found")
             raise Unauthorized("Invalid Authorization token.")
         
         try:
@@ -62,10 +61,8 @@ def load_user_from_request(request_from_flask_login):
         source = decoded.get("token_source")
         
         if source:
-            print(f"DEBUG: Console API auth - Token has source, rejecting")
             raise Unauthorized("Invalid Authorization token.")
         if not user_id:
-            print(f"DEBUG: Console API auth - No user_id in token")
             raise Unauthorized("Invalid Authorization token.")
 
         logged_in_account = AccountService.load_logged_in_account(account_id=user_id)

@@ -704,9 +704,9 @@ class ToolManager:
                         workflow_provider_controllers.append(
                             ToolTransformService.workflow_provider_to_controller(db_provider=workflow_provider)
                         )
-                    except Exception:
+                    except Exception as e:
                         # app has been deleted
-                        pass
+                        logger.debug("Failed to transform workflow provider, app may have been deleted: %s", e)
 
                 labels = ToolLabelManager.get_tools_labels(
                     [cast(ToolProviderController, controller) for controller in workflow_provider_controllers]

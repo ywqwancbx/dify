@@ -197,8 +197,6 @@ def check_csrf_token(request: Request, user_id: str):
     def _unauthorized():
         raise Unauthorized("CSRF token is missing or invalid.")
 
-    
-    
     for pattern in CSRF_WHITE_LIST:
         if pattern.match(request.path):
             
@@ -207,8 +205,6 @@ def check_csrf_token(request: Request, user_id: str):
     csrf_token = extract_csrf_token(request)
     csrf_token_from_cookie = extract_csrf_token_from_cookie(request)
     
-    
-
     if csrf_token != csrf_token_from_cookie:
         
         _unauthorized()
@@ -237,8 +233,6 @@ def check_csrf_token(request: Request, user_id: str):
             
             _unauthorized()
     
-    
-
 
 def generate_csrf_token(user_id: str) -> str:
     exp_dt = datetime.now(UTC) + timedelta(minutes=dify_config.ACCESS_TOKEN_EXPIRE_MINUTES)

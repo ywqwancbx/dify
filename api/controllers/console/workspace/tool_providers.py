@@ -23,7 +23,6 @@ from core.mcp.mcp_client import MCPClient
 from core.model_runtime.utils.encoders import jsonable_encoder
 from core.plugin.entities.plugin_daemon import CredentialType
 from core.plugin.impl.oauth import OAuthHandler
-from core.tools.entities.tool_entities import CredentialType as ToolCredentialType
 from libs.helper import StrLen, alphanumeric, uuid_value
 from libs.login import current_account_with_tenant, login_required
 from models.provider_ids import ToolProviderID
@@ -1064,7 +1063,6 @@ class ToolMCPAuthApi(Resource):
                 credentials={},
                 authed=False,
             )
->>>>>>> eam-integration-passthrough
             raise ValueError(f"Failed to connect to MCP server: {e}") from e
 
 
